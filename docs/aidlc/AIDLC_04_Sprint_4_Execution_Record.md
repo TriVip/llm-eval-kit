@@ -6,6 +6,10 @@
 **Status:** COMPLETED  
 **Implementation commit:** `949621b7c2fa5ba54c488dda1f78b7f27ae57149`
 
+**Documentation commit:** `6a89bcb9368ac601c832409782c32a9da7157a97`
+
+**GitHub Actions:** [CI run 34986250151 — PASS](https://github.com/TriVip/llm-eval-kit/actions/runs/34986250151)
+
 ## 1. Sprint goal
 
 Complete the MVP regression and reporting slice without allowing incompatible artifacts, changed case definitions, sensitive content, or accidental baseline updates to produce misleading quality decisions.
@@ -91,6 +95,7 @@ Baseline promotion succeeded only through `baseline save`. The candidate and bas
 | Secret-file scan | PASS, no tracked `.env` files |
 | Git whitespace check | PASS |
 | Offline baseline/regression demo | PASS |
+| GitHub Actions | PASS, quality, dependency audit, and secret scan |
 
 The Dependabot merge immediately before Sprint 4 raised TypeScript to 7.0.2, which is unsupported by `typescript-eslint` 8.70 and broke lint. TypeScript is pinned back to 6.0.2; this preserves the accepted compatibility decision and restores the quality gate.
 
