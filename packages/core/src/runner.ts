@@ -5,6 +5,7 @@ import { executeWithRetry, mapWithConcurrency, type RetryDependencies } from "./
 import { filterEvaluationSuite, type CaseFilters } from "./filters.js";
 import type {
   CaseResult,
+  ExecutionLogEvent,
   EvaluationResult,
   EvaluationSuite,
   Evaluator,
@@ -22,6 +23,7 @@ export type RunnerDependencies = {
   now: () => Date;
   createRunId: (now: Date) => string;
   retry: RetryDependencies;
+  logEvent: (event: ExecutionLogEvent) => Promise<void>;
 };
 
 export type RunEvaluationInput = {
@@ -70,7 +72,15 @@ const defaultDependencies: RunnerDependencies = {
       }),
     random: Math.random,
   },
+  logEvent: async () => undefined,
 };
+
+async function emitLog(
+  logEvent: RunnerDependencies["logEvent"],
+  event: ExecutionLogEvent,
+): Promise<void> {
+  await logEvent(event).catch(() => undefined);
+}
 
 function errorResult(
   evaluatorId: string,
@@ -92,6 +102,8 @@ async function evaluateCase(
   evaluators: EvaluatorRegistry,
   scoring: ScoringEngine,
   config: ProjectConfig,
+  runId: string,
+  logEvent: RunnerDependencies["logEvent"],
 ): Promise<CaseResult> {
   const evaluations: EvaluationResult[] = [];
 
@@ -108,18 +120,36 @@ async function evaluateCase(
     try {
       const result = await evaluator.evaluate({ testCase: suiteCase, generation }, spec.config);
       evaluations.push({ ...result, evaluatorId: spec.id });
+      await emitLog(logEvent, {
+        runId,
+        caseId: suiteCase.id,
+        evaluatorId: spec.id,
+        phase: "evaluator",
+        status: "completed",
+        durationMs: result.durationMs,
+        ...(result.usage === undefined ? {} : { usage: result.usage }),
+      });
     } catch (error) {
       const reason =
         error instanceof FrameworkError
           ? error.safeMessage
           : `Evaluator failed unexpectedly: ${spec.id}`;
       evaluations.push(errorResult(spec.id, evaluator.kind, reason));
+      await emitLog(logEvent, {
+        runId,
+        caseId: suiteCase.id,
+        evaluatorId: spec.id,
+        phase: "evaluator",
+        status: "failed",
+        errorCode: error instanceof FrameworkError ? error.code : "UNCLASSIFIED_EVALUATOR_ERROR",
+      });
     }
   }
 
   const aggregate = scoring.aggregateCase(evaluations, suiteCase.evaluators, config.qualityGate);
   return {
     caseId: suiteCase.id,
+    definitionHash: hash(suiteCase),
     category: suiteCase.category,
     severity: suiteCase.severity,
     verdict: aggregate.verdict,
@@ -136,6 +166,7 @@ function providerErrorCase(
 ): CaseResult {
   return {
     caseId: suiteCase.id,
+    definitionHash: hash(suiteCase),
     category: suiteCase.category,
     severity: suiteCase.severity,
     verdict: "ERROR",
@@ -169,6 +200,8 @@ export async function runEvaluationSuite(
   const runId = dependencies.createRunId(startedAt);
   const metadata: RunMetadata = {
     runId,
+    suiteId: input.suite.id,
+    metricDefinitionsVersion: "1.0",
     startedAt: startedAt.toISOString(),
     configHash: hash(input.config),
     suiteHash: hash(input.suite),
@@ -189,16 +222,44 @@ export async function runEvaluationSuite(
       try {
         const generation = await executeWithRetry(
           async (attempt, signal) => {
-            const result = await input.provider.generate(
-              generationRequest(input.config, suiteCase),
-              {
+            const attemptId = `${suiteCase.id}_attempt_${attempt}`;
+            await emitLog(dependencies.logEvent, {
+              runId,
+              caseId: suiteCase.id,
+              attemptId,
+              providerId: input.provider.id,
+              phase: "provider",
+              status: "started",
+            });
+            try {
+              const result = await input.provider.generate(
+                generationRequest(input.config, suiteCase),
+                { runId, caseId: suiteCase.id, attemptId, signal },
+              );
+              await emitLog(dependencies.logEvent, {
                 runId,
                 caseId: suiteCase.id,
-                attemptId: `${suiteCase.id}_attempt_${attempt}`,
-                signal,
-              },
-            );
-            return { ...result, attemptCount: attempt };
+                attemptId,
+                providerId: input.provider.id,
+                phase: "provider",
+                status: "completed",
+                durationMs: result.latencyMs,
+                usage: result.usage,
+              });
+              return { ...result, attemptCount: attempt };
+            } catch (error) {
+              await emitLog(dependencies.logEvent, {
+                runId,
+                caseId: suiteCase.id,
+                attemptId,
+                providerId: input.provider.id,
+                phase: "provider",
+                status: "failed",
+                errorCode:
+                  error instanceof FrameworkError ? error.code : "UNCLASSIFIED_PROVIDER_ERROR",
+              });
+              throw error;
+            }
           },
           input.config.execution,
           dependencies.retry,
@@ -209,6 +270,8 @@ export async function runEvaluationSuite(
           input.evaluators,
           input.scoring,
           input.config,
+          runId,
+          dependencies.logEvent,
         );
         observedCostUsd +=
           (result.generation?.usage.estimatedCostUsd ?? 0) +

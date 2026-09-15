@@ -4,7 +4,7 @@ An automated quality engineering framework for testing, benchmarking, and regres
 
 ## Project status
 
-Phase 4 implementation is in progress. Sprint 3 adds bounded concurrent execution, typed timeout/retry behavior, runtime cost budgets, normalized OpenAI and Gemini adapters, LLM-as-a-Judge, and human-review queue export. The default demo remains fully offline and free.
+Phase 4 implementation is in progress. Sprint 4 adds safe baseline compatibility and regression comparison, explicit baseline promotion, central redaction, structured logs, static HTML reports, and the complete MVP command surface. The default demo remains fully offline and free.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ The approved product, architecture, backlog, test strategy, traceability matrix,
 - [Framework prototype](docs/aidlc/LLM_Evaluation_Framework_Prototype.md)
 - [System design](docs/aidlc/AIDLC_02_System_Design.md)
 - [Product backlog](docs/aidlc/AIDLC_03_Product_Backlog.md)
-- [Sprint 3 execution record](docs/aidlc/AIDLC_04_Sprint_3_Execution_Record.md)
+- [Sprint 4 execution record](docs/aidlc/AIDLC_04_Sprint_4_Execution_Record.md)
 
 ## Development
 
@@ -70,6 +70,44 @@ node apps/cli/dist/index.js run \
 ```
 
 Exit codes are stable: `0` pass, `1` quality gate failure, `2` invalid input, `3` operationally unreliable run, and `4` internal/framework failure.
+
+## Validate, compare, and report
+
+Validate inputs without calling a provider:
+
+```bash
+node apps/cli/dist/index.js validate \
+  --config examples/ecommerce-support/llmeval.config.json \
+  --suite examples/ecommerce-support/suite.yaml
+```
+
+Promote a reviewed run explicitly. Existing baselines are never replaced unless `--overwrite` is supplied:
+
+```bash
+node apps/cli/dist/index.js baseline save \
+  --run reports/<approved-run-id>/run.json \
+  --output reports/baseline.json
+```
+
+Compare a candidate with the compatible baseline. Only unchanged matched cases contribute to category deltas; added, removed, and changed cases are classified separately:
+
+```bash
+node apps/cli/dist/index.js compare \
+  --run reports/<candidate-run-id>/run.json \
+  --baseline reports/baseline.json
+```
+
+Render a self-contained local HTML report, optionally with baseline deltas:
+
+```bash
+node apps/cli/dist/index.js report \
+  --run reports/<candidate-run-id>/run.json \
+  --baseline reports/baseline.json \
+  --format html \
+  --output reports/report.html
+```
+
+Each run writes canonical `run.json`, `human-review.json`, and redacted `logs.ndjson`. HTML is also generated during `run` when `html` is included in `output.formats`. Dynamic content is escaped, secrets are centrally redacted, and raw responses are replaced when `retainRawResponses=false`.
 
 ## Provider execution
 

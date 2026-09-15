@@ -12,6 +12,7 @@
     "@llm-eval-kit/core": "workspace:*",
     "@llm-eval-kit/evaluators": "workspace:*",
     "@llm-eval-kit/providers": "workspace:*",
+    "@llm-eval-kit/reporters": "workspace:*",
     "@llm-eval-kit/scoring": "workspace:*",
     "commander": "^15.0.0"
   },

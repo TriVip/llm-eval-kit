@@ -16,6 +16,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 10. [Sprint 1 Execution Record](AIDLC_04_Sprint_1_Execution_Record.md) — first offline vertical slice evidence.
 11. [Sprint 2 Execution Record](AIDLC_04_Sprint_2_Execution_Record.md) — evaluator pack and risk-based quality-gate evidence.
 12. [Sprint 3 Execution Record](AIDLC_04_Sprint_3_Execution_Record.md) — provider execution, semantic evaluation, and human-review evidence.
+13. [Sprint 4 Execution Record](AIDLC_04_Sprint_4_Execution_Record.md) — baseline regression, redacted observability, reporting, and final CLI evidence.
 
 ## Current delivery status
 
@@ -28,6 +29,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Phase 4 — Sprint 1 | Completed |
 | Phase 4 — Sprint 2 | Completed |
 | Phase 4 — Sprint 3 | Completed |
-| Phase 4 — Sprint 4 | Ready to start |
+| Phase 4 — Sprint 4 | Completed |
+| Phase 4 — Sprint 5 | Ready to start |
 
-Sprint 4 covers T-027 through T-033: baseline compatibility and comparison, explicit promotion, structured redacted logs, final reporters, and the completed CLI command surface.
+Sprint 5 covers T-034 through T-040: the 50-case portfolio dataset, pass/regression CI scenarios, performance and calibration evidence, documentation polish, packaging, and release readiness.

@@ -1,14 +1,16 @@
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { Command, CommanderError } from "commander";
 
-import { writeHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
-import { loadEvaluationSuite, loadProjectConfig } from "@llm-eval-kit/config";
+import { promoteBaseline, writeHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
+import { loadEvaluationSuite, loadProjectConfig, loadRunArtifact } from "@llm-eval-kit/config";
 import {
+  compareRunArtifacts,
   ConfigurationError,
   DatasetValidationError,
   FrameworkError,
   filterEvaluationSuite,
+  redactRunArtifact,
   runEvaluationSuite,
   type CaseFilters,
   type Evaluator,
@@ -32,6 +34,11 @@ import {
   OpenAiProvider,
 } from "@llm-eval-kit/providers";
 import { RiskScoringEngine } from "@llm-eval-kit/scoring";
+import {
+  appendStructuredLog,
+  renderTerminalReport,
+  writeHtmlReport,
+} from "@llm-eval-kit/reporters";
 
 export type CliContext = {
   cwd?: string;
@@ -49,6 +56,16 @@ type RunOptions = {
   category?: string[];
   severity?: string[];
   tag?: string[];
+};
+
+type ValidateOptions = { config: string; suite: string };
+type CompareOptions = { run: string; baseline: string; maximumCategoryRegressionPoints: string };
+type BaselineSaveOptions = { run: string; output: string; overwrite?: boolean };
+type ReportOptions = {
+  run: string;
+  format: "terminal" | "html";
+  output?: string;
+  baseline?: string;
 };
 
 const defaultWriteOut = (message: string): void => {
@@ -69,25 +86,6 @@ function errorExitCode(error: FrameworkError): number {
   }
 
   return 4;
-}
-
-function renderSummary(
-  artifactPath: string,
-  artifact: Awaited<ReturnType<typeof runEvaluationSuite>>,
-): string {
-  const { metrics } = artifact;
-  return [
-    `Run: ${artifact.metadata.runId}`,
-    `Status: ${artifact.status}`,
-    `Cases: ${metrics.passedCases} passed, ${metrics.failedCases} failed, ${metrics.warningCases} warnings, ${metrics.errorCases} errors`,
-    `Pass rate: ${(metrics.passRate * 100).toFixed(2)}%`,
-    ...artifact.gateFailures.map(
-      (failure) =>
-        `Gate failure [${failure.code}]: ${failure.reason} Cases: ${failure.affectedCaseIds.join(", ") || "none"}`,
-    ),
-    `Artifact: ${artifactPath}`,
-    "",
-  ].join("\n");
 }
 
 function collectOption(value: string, previous: string[] = []): string[] {
@@ -148,6 +146,7 @@ async function executeRun(options: RunOptions, context: Required<CliContext>): P
   const suite = await loadEvaluationSuite(suitePath);
   const filters = caseFilters(options);
   const selectedSuite = filterEvaluationSuite(suite, filters);
+  const outputRoot = resolve(context.cwd, config.output.directory);
 
   if (options.dryRun === true) {
     context.writeOut(
@@ -192,18 +191,57 @@ async function executeRun(options: RunOptions, context: Required<CliContext>): P
       }) as Evaluator<unknown>,
     ]);
   }
-  const artifact = await runEvaluationSuite({
-    config,
-    suite,
-    provider,
-    evaluators: new Map<string, Evaluator<unknown>>(evaluatorEntries),
-    scoring: new RiskScoringEngine(),
-    filters,
-  });
+  const artifact = await runEvaluationSuite(
+    {
+      config,
+      suite,
+      provider,
+      evaluators: new Map<string, Evaluator<unknown>>(evaluatorEntries),
+      scoring: new RiskScoringEngine(),
+      filters,
+    },
+    {
+      logEvent: async (event) => {
+        await appendStructuredLog(join(outputRoot, event.runId, "logs.ndjson"), {
+          timestamp: new Date().toISOString(),
+          level: event.status === "failed" ? "error" : "info",
+          event: `${event.phase}.${event.status}`,
+          runId: event.runId,
+          ...(event.caseId === undefined ? {} : { caseId: event.caseId }),
+          ...(event.attemptId === undefined ? {} : { attemptId: event.attemptId }),
+          ...(event.providerId === undefined ? {} : { providerId: event.providerId }),
+          ...(event.evaluatorId === undefined ? {} : { evaluatorId: event.evaluatorId }),
+          ...(event.durationMs === undefined ? {} : { durationMs: event.durationMs }),
+          ...(event.errorCode === undefined ? {} : { errorCode: event.errorCode }),
+          ...(event.usage === undefined ? {} : { data: { usage: event.usage } }),
+        }).catch(() => undefined);
+      },
+    },
+  );
   let artifactPath: string;
+  const reportPaths: string[] = [];
   try {
-    artifactPath = await writeRunArtifact(artifact, resolve(context.cwd, config.output.directory));
-    await writeHumanReviewQueue(artifact, resolve(context.cwd, config.output.directory));
+    artifactPath = await writeRunArtifact(artifact, outputRoot, {
+      retainRawResponses: config.output.retainRawResponses,
+    });
+    reportPaths.push(artifactPath);
+    await writeHumanReviewQueue(artifact, outputRoot);
+    const runDirectory = dirname(artifactPath);
+    if (config.output.formats.includes("html")) {
+      reportPaths.push(
+        await writeHtmlReport(
+          redactRunArtifact(artifact, config.output.retainRawResponses),
+          join(runDirectory, "report.html"),
+        ),
+      );
+    }
+    await appendStructuredLog(join(runDirectory, "logs.ndjson"), {
+      timestamp: new Date().toISOString(),
+      level: "info",
+      event: "run.completed",
+      runId: artifact.metadata.runId,
+      data: { status: artifact.status, metrics: artifact.metrics },
+    });
   } catch (error) {
     if (artifact.status !== "PASSED") {
       context.writeErr(
@@ -214,8 +252,77 @@ async function executeRun(options: RunOptions, context: Required<CliContext>): P
     throw error;
   }
 
-  context.writeOut(renderSummary(artifactPath, artifact));
+  if (config.output.formats.includes("terminal")) {
+    context.writeOut(renderTerminalReport(artifact, reportPaths));
+  } else {
+    context.writeOut(`Artifact: ${artifactPath}\n`);
+  }
   return statusExitCode(artifact);
+}
+
+async function executeValidate(
+  options: ValidateOptions,
+  context: Required<CliContext>,
+): Promise<number> {
+  const config = await loadProjectConfig(resolve(context.cwd, options.config));
+  const suite = await loadEvaluationSuite(resolve(context.cwd, options.suite));
+  context.writeOut(
+    `Validation passed: ${config.project.id}/${suite.id} (${suite.cases.length} cases)\n`,
+  );
+  return 0;
+}
+
+async function executeCompare(
+  options: CompareOptions,
+  context: Required<CliContext>,
+): Promise<number> {
+  const maximum = Number(options.maximumCategoryRegressionPoints);
+  if (!Number.isFinite(maximum) || maximum < 0 || maximum > 100) {
+    throw new ConfigurationError("Maximum category regression points must be between 0 and 100.");
+  }
+  const candidate = await loadRunArtifact(resolve(context.cwd, options.run));
+  const baseline = await loadRunArtifact(resolve(context.cwd, options.baseline));
+  const comparison = compareRunArtifacts(candidate, baseline, {
+    maximumCategoryRegressionPoints: maximum,
+  });
+  context.writeOut(`${JSON.stringify(comparison, null, 2)}\n`);
+  return comparison.status === "PASSED" ? 0 : 1;
+}
+
+async function executeBaselineSave(
+  options: BaselineSaveOptions,
+  context: Required<CliContext>,
+): Promise<number> {
+  const artifact = await loadRunArtifact(resolve(context.cwd, options.run));
+  const output = await promoteBaseline(
+    artifact,
+    resolve(context.cwd, options.output),
+    options.overwrite === undefined ? {} : { overwrite: options.overwrite },
+  );
+  context.writeOut(`Baseline promoted: ${output}\n`);
+  return 0;
+}
+
+async function executeReport(
+  options: ReportOptions,
+  context: Required<CliContext>,
+): Promise<number> {
+  const artifact = await loadRunArtifact(resolve(context.cwd, options.run));
+  const comparison =
+    options.baseline === undefined
+      ? undefined
+      : compareRunArtifacts(
+          artifact,
+          await loadRunArtifact(resolve(context.cwd, options.baseline)),
+        );
+  if (options.format === "terminal") {
+    context.writeOut(renderTerminalReport(artifact, [], comparison));
+    return 0;
+  }
+  const output = resolve(context.cwd, options.output ?? join(dirname(options.run), "report.html"));
+  await writeHtmlReport(artifact, output, comparison);
+  context.writeOut(`Report: ${output}\n`);
+  return 0;
 }
 
 export async function runCli(argv: string[], providedContext: CliContext = {}): Promise<number> {
@@ -238,6 +345,15 @@ export async function runCli(argv: string[], providedContext: CliContext = {}): 
     });
 
   program
+    .command("validate")
+    .description("Validate configuration and suite files without provider calls.")
+    .requiredOption("--config <path>", "project configuration file")
+    .requiredOption("--suite <path>", "evaluation suite file")
+    .action(async (options: ValidateOptions) => {
+      commandExitCode = await executeValidate(options, context);
+    });
+
+  program
     .command("run")
     .description("Run an evaluation suite.")
     .requiredOption("--config <path>", "project configuration file")
@@ -251,6 +367,41 @@ export async function runCli(argv: string[], providedContext: CliContext = {}): 
     .option("--tag <name>", "tag filter (repeatable or comma-separated)", collectOption)
     .action(async (options: RunOptions) => {
       commandExitCode = await executeRun(options, context);
+    });
+
+  program
+    .command("compare")
+    .description("Compare a candidate run with a compatible baseline.")
+    .requiredOption("--run <path>", "candidate run.json")
+    .requiredOption("--baseline <path>", "baseline run.json")
+    .option("--maximum-category-regression-points <points>", "allowed category regression", "3")
+    .action(async (options: CompareOptions) => {
+      commandExitCode = await executeCompare(options, context);
+    });
+
+  const baseline = program.command("baseline").description("Manage explicit run baselines.");
+  baseline
+    .command("save")
+    .description("Promote a validated run artifact to a baseline.")
+    .requiredOption("--run <path>", "source run.json")
+    .requiredOption("--output <path>", "baseline output path")
+    .option("--overwrite", "replace an existing baseline explicitly")
+    .action(async (options: BaselineSaveOptions) => {
+      commandExitCode = await executeBaselineSave(options, context);
+    });
+
+  program
+    .command("report")
+    .description("Render a report from an immutable run artifact.")
+    .requiredOption("--run <path>", "run.json")
+    .requiredOption("--format <format>", "terminal or html")
+    .option("--output <path>", "HTML output path")
+    .option("--baseline <path>", "optional compatible baseline")
+    .action(async (options: ReportOptions) => {
+      if (options.format !== "terminal" && options.format !== "html") {
+        throw new ConfigurationError("Report format must be terminal or html.");
+      }
+      commandExitCode = await executeReport(options, context);
     });
 
   try {

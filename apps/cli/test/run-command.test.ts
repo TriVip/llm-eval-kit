@@ -111,6 +111,32 @@ describe("llmeval run", () => {
       status: string;
     };
     expect(artifact.status).toBe("PASSED");
+    const logs = (
+      await readFile((artifactPath as string).replace(/run\.json$/, "logs.ndjson"), "utf8")
+    )
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(logs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: "provider.started",
+          caseId: "REFUND_001",
+          attemptId: "REFUND_001_attempt_1",
+        }),
+        expect.objectContaining({
+          event: "provider.completed",
+          caseId: "REFUND_001",
+          attemptId: "REFUND_001_attempt_1",
+        }),
+        expect.objectContaining({
+          event: "evaluator.completed",
+          caseId: "REFUND_001",
+          evaluatorId: "exact-policy",
+        }),
+        expect.objectContaining({ event: "run.completed", runId: expect.any(String) }),
+      ]),
+    );
   });
 
   it("returns exit 1 for an exact-match quality failure", async () => {

@@ -227,6 +227,8 @@ export const runArtifactSchema = z
     metadata: z
       .object({
         runId: identifierSchema,
+        suiteId: identifierSchema.optional(),
+        metricDefinitionsVersion: z.literal("1.0").optional(),
         startedAt: z.string().datetime(),
         completedAt: z.string().datetime().optional(),
         configHash: z.string().min(1),
@@ -282,7 +284,22 @@ export const runArtifactSchema = z
         })
         .strict(),
     ),
-    cases: z.array(z.unknown()),
+    cases: z.array(
+      z
+        .object({
+          caseId: identifierSchema,
+          definitionHash: z.string().min(1).optional(),
+          category: identifierSchema,
+          severity: severitySchema,
+          verdict: verdictSchema,
+          score: probabilitySchema.optional(),
+          confidence: probabilitySchema.optional(),
+          generation: z.unknown().optional(),
+          evaluations: z.array(z.unknown()),
+          errorCode: identifierSchema.optional(),
+        })
+        .passthrough(),
+    ),
   })
   .strict();
 

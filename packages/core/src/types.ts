@@ -113,6 +113,19 @@ export type ProviderExecutionContext = {
   signal: AbortSignal;
 };
 
+export type ExecutionLogEvent = {
+  runId: string;
+  caseId?: string;
+  attemptId?: string;
+  providerId?: string;
+  evaluatorId?: string;
+  phase: "provider" | "evaluator" | "run";
+  status: "started" | "completed" | "failed";
+  durationMs?: number;
+  errorCode?: string;
+  usage?: UsageMetrics;
+};
+
 export type UsageMetrics = {
   inputTokens?: number;
   outputTokens?: number;
@@ -166,6 +179,8 @@ export interface Evaluator<TConfig = unknown> {
 
 export type RunMetadata = {
   runId: string;
+  suiteId?: string;
+  metricDefinitionsVersion?: "1.0";
   startedAt: string;
   completedAt?: string;
   configHash: string;
@@ -177,6 +192,7 @@ export type RunMetadata = {
 
 export type CaseResult = {
   caseId: string;
+  definitionHash?: string;
   category: string;
   severity: Severity;
   verdict: Verdict;
@@ -264,6 +280,39 @@ export type RunArtifact = {
   metrics: RunMetrics;
   gateFailures: GateFailure[];
   cases: CaseResult[];
+};
+
+export type BaselineCaseClassification = {
+  matched: string[];
+  added: string[];
+  removed: string[];
+  changed: string[];
+};
+
+export type MetricDelta = {
+  baseline: number;
+  candidate: number;
+  delta: number;
+};
+
+export type CategoryComparison = {
+  category: string;
+  matchedCaseIds: string[];
+  passRate: MetricDelta;
+};
+
+export type BaselineComparison = {
+  schemaVersion: "1.0";
+  baselineRunId: string;
+  candidateRunId: string;
+  classification: BaselineCaseClassification;
+  overallPassRate: MetricDelta;
+  categories: CategoryComparison[];
+  criticalRegressionCaseIds: string[];
+  gateFailures: GateFailure[];
+  status: "PASSED" | "QUALITY_FAILED";
+  costDeltaUsd?: MetricDelta;
+  latencyDeltaMs?: MetricDelta;
 };
 
 export interface ScoringEngine {

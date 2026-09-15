@@ -191,4 +191,36 @@ describe("runEvaluationSuite", () => {
       errorCode: "MOCK_FAILURE",
     });
   });
+
+  it("does not let observability sink failures alter evaluation results", async () => {
+    const provider: LlmProvider = {
+      id: "mock",
+      async generate() {
+        return {
+          text: "Answer",
+          usage: {},
+          latencyMs: 0,
+          resolvedProvider: "mock",
+          resolvedModel: "fixture-v1",
+        };
+      },
+    };
+    const artifact = await runEvaluationSuite(
+      {
+        config,
+        suite,
+        provider,
+        evaluators: new Map([["exact_match", evaluator]]),
+        scoring,
+      },
+      {
+        now: () => new Date("2026-09-15T00:00:00.000Z"),
+        createRunId: () => "run_logging_failure",
+        logEvent: async () => {
+          throw new Error("log sink unavailable");
+        },
+      },
+    );
+    expect(artifact.status).toBe("PASSED");
+  });
 });

@@ -9,11 +9,12 @@ import {
   DatasetValidationError,
   type EvaluationSuite,
   type ProjectConfig,
+  type RunArtifact,
 } from "@llm-eval-kit/core";
 
-import { evaluationSuiteSchema, projectConfigSchema } from "./schemas.js";
+import { evaluationSuiteSchema, projectConfigSchema, runArtifactSchema } from "./schemas.js";
 
-type FileKind = "configuration" | "evaluation suite";
+type FileKind = "configuration" | "evaluation suite" | "run artifact";
 
 function validationSummary(error: ZodError): string {
   return error.issues
@@ -85,4 +86,13 @@ export async function loadEvaluationSuite(filePath: string): Promise<EvaluationS
   }
 
   return result.data as EvaluationSuite;
+}
+
+export async function loadRunArtifact(filePath: string): Promise<RunArtifact> {
+  const input = await readStructuredFile(filePath, "run artifact");
+  const result = runArtifactSchema.safeParse(input);
+  if (!result.success) {
+    throw new ConfigurationError(`Invalid run artifact: ${validationSummary(result.error)}`);
+  }
+  return result.data as RunArtifact;
 }
