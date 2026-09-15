@@ -5,8 +5,9 @@
 **Execution date:** 2026-09-15  
 **Status:** COMPLETED  
 **Implementation commit:** `80247d76e2aa44c04a8e79651b6a1d2dd0675916`  
+**Release-candidate merge commit:** `18d7e4e02b36aa750cb9440f264a11ae957da574`  
 **Pull request:** [#2 — Sprint 5: portfolio release candidate v0.1.0](https://github.com/TriVip/llm-eval-kit/pull/2)  
-**GitHub Actions:** [CI run 34995978654 — PASS](https://github.com/TriVip/llm-eval-kit/actions/runs/34995978654)
+**GitHub Actions:** [CI run 34996463261 — PASS](https://github.com/TriVip/llm-eval-kit/actions/runs/34996463261)
 
 ## 1. Sprint goal
 
@@ -44,7 +45,7 @@ The automated review also enforces all four severity levels, at least 20% HIGH/C
 - Default offline run: 64/64 PASS, exit `0`, canonical JSON and HTML generated.
 - Deliberate regression: `REFUND_001` answers “30 days”, status `QUALITY_FAILED`, exit `1`.
 - No paid secrets: OpenAI and Gemini report explicit `SKIP`; mock CI remains authoritative.
-- GitHub Actions run 34995978654 passed quality, regression-demo, dependency-audit and secret-scan jobs.
+- GitHub Actions run 34996463261 passed quality, regression-demo, dependency-audit and secret-scan jobs with the tracked dataset-review test.
 - Reports are uploaded as `portfolio-pass-report` and `portfolio-regression-report` workflow artifacts.
 
 This satisfies TS-039–TS-042 without turning a missing paid credential into false evidence of a live test.
