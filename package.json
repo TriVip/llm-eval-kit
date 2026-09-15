@@ -1,6 +1,6 @@
 {
   "name": "llm-eval-kit",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "An automated quality engineering framework for testing, benchmarking, and regression-testing LLM applications.",
   "license": "MIT",
@@ -16,7 +16,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "calibration:verify": "pnpm build && node scripts/verify-calibration.mjs",
+    "provider:smoke": "pnpm build && node scripts/provider-smoke.mjs",
+    "portfolio:verify": "pnpm build && node scripts/verify-portfolio.mjs",
+    "benchmark:mock": "vitest run packages/core/test/performance.test.ts",
+    "release:verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test:coverage && pnpm calibration:verify && node scripts/verify-portfolio.mjs && node scripts/provider-smoke.mjs && node scripts/verify-release.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,4 +1,5 @@
 export * from "./contains.js";
+export * from "./calibration.js";
 export * from "./exact-match.js";
 export * from "./forbidden.js";
 export * from "./json-schema.js";

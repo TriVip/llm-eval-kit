@@ -4,7 +4,7 @@ An automated quality engineering framework for testing, benchmarking, and regres
 
 ## Project status
 
-Phase 4 implementation is in progress. Sprint 4 adds safe baseline compatibility and regression comparison, explicit baseline promotion, central redaction, structured logs, static HTML reports, and the complete MVP command surface. The default demo remains fully offline and free.
+Version 0.1.0 release candidate is feature-complete. The default 64-case e-commerce demo is fully offline, deterministic and free; OpenAI and Gemini remain opt-in.
 
 ## Architecture
 
@@ -27,6 +27,10 @@ The approved product, architecture, backlog, test strategy, traceability matrix,
 - [System design](docs/aidlc/AIDLC_02_System_Design.md)
 - [Product backlog](docs/aidlc/AIDLC_03_Product_Backlog.md)
 - [Sprint 4 execution record](docs/aidlc/AIDLC_04_Sprint_4_Execution_Record.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Known limitations](docs/LIMITATIONS.md)
+- [ROI model](docs/ROI.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
 
 ## Development
 
@@ -48,6 +52,8 @@ node apps/cli/dist/index.js run \
   --fixtures examples/ecommerce-support/fixtures.json
 ```
 
+The command evaluates 64 reviewed cases and writes terminal, canonical JSON, human-review and self-contained HTML evidence under `reports/<run-id>/`. It should take well under ten minutes from a clean checkout on Node.js 22.
+
 Run a targeted selection by repeating or comma-separating filters:
 
 ```bash
@@ -66,7 +72,8 @@ Run the deliberate critical regression fixture (returns exit `1`):
 node apps/cli/dist/index.js run \
   --config examples/ecommerce-support/llmeval.config.json \
   --suite examples/ecommerce-support/suite.yaml \
-  --fixtures examples/ecommerce-support/fixtures-regression.json
+  --fixtures examples/ecommerce-support/fixtures-regression.json \
+  --case REFUND_001
 ```
 
 Exit codes are stable: `0` pass, `1` quality gate failure, `2` invalid input, `3` operationally unreliable run, and `4` internal/framework failure.
@@ -141,6 +148,23 @@ Token prices are deliberately not hard-coded because provider pricing changes. A
 For semantic evaluation, configure a separate `judge` target and use `llm_judge`, as demonstrated by `llmeval.semantic.openai.config.json` and `suite-semantic.yaml`. Judge output is schema-validated. Low-confidence model judgments become warnings and are exported to `reports/<run-id>/human-review.json`.
 
 Provider unit and contract tests use injected HTTP transports; the default CI never requires credentials or spends API budget.
+
+Run optional provider smoke policy locally. Missing keys/models produce explicit skips and exit successfully; no paid request is made:
+
+```bash
+pnpm provider:smoke
+```
+
+## Calibration and release evidence
+
+The repository includes 30 human-labelled calibration records with three deterministic judge runs each. This verifies metric calculation, thresholds and review routing—not the quality of an arbitrary live judge:
+
+```bash
+pnpm calibration:verify
+pnpm release:verify
+```
+
+An LLM judge must be calibrated against the chosen live model and domain before its verdict can be made blocking. See [known limitations](docs/LIMITATIONS.md).
 
 Run the semantic-evaluation and human-review flow entirely offline:
 

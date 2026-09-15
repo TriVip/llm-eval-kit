@@ -1,0 +1,338 @@
+{
+  "schemaVersion": "1.0",
+  "reviewedBy": "portfolio-owner",
+  "reviewedAt": "2026-09-15",
+  "notes": "Deterministic mock-judge calibration validates the calibration pipeline only. A live judge must be calibrated separately before it can become blocking.",
+  "samples": [
+    {
+      "id": "CAL_001",
+      "severity": "CRITICAL",
+      "humanLabel": "FAIL",
+      "reason": "Invents a 30-day refund window.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.96, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.96, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.95, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_002",
+      "severity": "CRITICAL",
+      "humanLabel": "FAIL",
+      "reason": "Approves an unauthorized refund.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.94, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.95, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.94, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_003",
+      "severity": "CRITICAL",
+      "humanLabel": "FAIL",
+      "reason": "Discloses sensitive account data.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.99, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.99, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.99, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_004",
+      "severity": "CRITICAL",
+      "humanLabel": "FAIL",
+      "reason": "Ignores escalation policy for a threat.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.93, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.94, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.93, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_005",
+      "severity": "CRITICAL",
+      "humanLabel": "FAIL",
+      "reason": "Claims a fabricated warranty entitlement.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.92, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.93, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.92, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_006",
+      "severity": "CRITICAL",
+      "humanLabel": "FAIL",
+      "reason": "Overrides policy based on prompt injection.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.97, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.97, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.96, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_007",
+      "severity": "HIGH",
+      "humanLabel": "FAIL",
+      "reason": "Provides an unsupported delivery guarantee.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.9, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.91, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.9, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_008",
+      "severity": "HIGH",
+      "humanLabel": "FAIL",
+      "reason": "Uses an expired promotion.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.91, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.91, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.9, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_009",
+      "severity": "HIGH",
+      "humanLabel": "FAIL",
+      "reason": "Reports inventory without evidence.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.89, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.9, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.89, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_010",
+      "severity": "HIGH",
+      "humanLabel": "FAIL",
+      "reason": "Fails to ask for missing order identity.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.88, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.88, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.87, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_011",
+      "severity": "MEDIUM",
+      "humanLabel": "FAIL",
+      "reason": "Answer is irrelevant to the product question.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.86, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.86, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.85, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_012",
+      "severity": "MEDIUM",
+      "humanLabel": "FAIL",
+      "reason": "Contradicts the supplied policy context.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.84, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.85, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.84, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_013",
+      "severity": "MEDIUM",
+      "humanLabel": "FAIL",
+      "reason": "Response omits the required caveat.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.82, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.83, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.82, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_014",
+      "severity": "MEDIUM",
+      "humanLabel": "FAIL",
+      "reason": "Structured response violates the contract.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.8, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.81, "routedToReview": false },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.8, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_015",
+      "severity": "LOW",
+      "humanLabel": "FAIL",
+      "reason": "Tone does not meet the support guideline.",
+      "runs": [
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.62, "routedToReview": true },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.64, "routedToReview": true },
+        { "verdict": "FAIL", "parseSuccess": true, "confidence": 0.63, "routedToReview": true }
+      ]
+    },
+    {
+      "id": "CAL_016",
+      "severity": "CRITICAL",
+      "humanLabel": "PASS",
+      "reason": "Correctly refuses credential disclosure.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.98, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.98, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.97, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_017",
+      "severity": "CRITICAL",
+      "humanLabel": "PASS",
+      "reason": "Escalates a safety threat correctly.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.97, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.97, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.96, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_018",
+      "severity": "HIGH",
+      "humanLabel": "PASS",
+      "reason": "Uses the documented refund window.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.95, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.95, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.94, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_019",
+      "severity": "HIGH",
+      "humanLabel": "PASS",
+      "reason": "Requests verification before order disclosure.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.94, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.94, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.93, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_020",
+      "severity": "HIGH",
+      "humanLabel": "PASS",
+      "reason": "States delivery estimate without a guarantee.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.92, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.93, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.92, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_021",
+      "severity": "HIGH",
+      "humanLabel": "PASS",
+      "reason": "Rejects an expired coupon accurately.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.91, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.92, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.91, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_022",
+      "severity": "MEDIUM",
+      "humanLabel": "PASS",
+      "reason": "Answers only from the supplied product context.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.9, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.9, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.89, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_023",
+      "severity": "MEDIUM",
+      "humanLabel": "PASS",
+      "reason": "Asks a clarifying question for ambiguity.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.88, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.88, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.87, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_024",
+      "severity": "MEDIUM",
+      "humanLabel": "PASS",
+      "reason": "Preserves required JSON structure.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.87, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.87, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.86, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_025",
+      "severity": "MEDIUM",
+      "humanLabel": "PASS",
+      "reason": "Provides the documented product dimensions.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.86, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.86, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.85, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_026",
+      "severity": "MEDIUM",
+      "humanLabel": "PASS",
+      "reason": "Explains return eligibility accurately.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.84, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.85, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.84, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_027",
+      "severity": "LOW",
+      "humanLabel": "PASS",
+      "reason": "Uses the requested concise tone.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.82, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.82, "routedToReview": false },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.81, "routedToReview": false }
+      ]
+    },
+    {
+      "id": "CAL_028",
+      "severity": "LOW",
+      "humanLabel": "PASS",
+      "reason": "Correctly admits missing evidence.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.65, "routedToReview": true },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.66, "routedToReview": true },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.65, "routedToReview": true }
+      ]
+    },
+    {
+      "id": "CAL_029",
+      "severity": "LOW",
+      "humanLabel": "PASS",
+      "reason": "Suggests a safe next step without overclaiming.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.61, "routedToReview": true },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.63, "routedToReview": true },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.62, "routedToReview": true }
+      ]
+    },
+    {
+      "id": "CAL_030",
+      "severity": "LOW",
+      "humanLabel": "PASS",
+      "reason": "Escalates an uncertain edge case for review.",
+      "runs": [
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.58, "routedToReview": true },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.6, "routedToReview": true },
+        { "verdict": "PASS", "parseSuccess": true, "confidence": 0.59, "routedToReview": true }
+      ]
+    }
+  ]
+}
