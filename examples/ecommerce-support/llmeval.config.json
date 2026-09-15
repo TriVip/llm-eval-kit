@@ -12,7 +12,7 @@
   "qualityGate": {},
   "output": {
     "directory": "reports",
-    "formats": ["terminal", "json"],
+    "formats": ["terminal", "json", "html"],
     "retainRawResponses": false
   }
 }

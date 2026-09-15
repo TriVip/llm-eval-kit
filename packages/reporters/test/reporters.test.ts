@@ -58,7 +58,7 @@ const artifact: RunArtifact = {
       severity: "CRITICAL",
       verdict: "FAIL",
       generation: {
-        text: "<script>alert('x')</script> sk-supersecret123",
+        text: "<script>alert('x')</script><img src=x onerror=alert(1)> sk-supersecret123",
         usage: {},
         latencyMs: 1,
         resolvedProvider: "mock",
@@ -80,6 +80,8 @@ describe("Sprint 4 reporters", () => {
   it("escapes untrusted HTML and redacts API keys", () => {
     const html = renderHtmlReport(artifact);
     expect(html).toContain("&lt;script&gt;alert");
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(html).not.toContain("<img src=x");
     expect(html).not.toContain("sk-supersecret123");
     expect(html).toContain("[REDACTED]");
   });

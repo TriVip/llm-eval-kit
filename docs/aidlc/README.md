@@ -17,6 +17,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 11. [Sprint 2 Execution Record](AIDLC_04_Sprint_2_Execution_Record.md) — evaluator pack and risk-based quality-gate evidence.
 12. [Sprint 3 Execution Record](AIDLC_04_Sprint_3_Execution_Record.md) — provider execution, semantic evaluation, and human-review evidence.
 13. [Sprint 4 Execution Record](AIDLC_04_Sprint_4_Execution_Record.md) — baseline regression, redacted observability, reporting, and final CLI evidence.
+14. [Sprint 5 Execution Record](AIDLC_04_Sprint_5_Execution_Record.md) — portfolio dataset, CI demonstrations, hardening, calibration, and release evidence.
 
 ## Current delivery status
 
@@ -30,6 +31,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Phase 4 — Sprint 2 | Completed |
 | Phase 4 — Sprint 3 | Completed |
 | Phase 4 — Sprint 4 | Completed |
-| Phase 4 — Sprint 5 | Ready to start |
+| Phase 4 — Sprint 5 | Completed |
 
-Sprint 5 covers T-034 through T-040: the 50-case portfolio dataset, pass/regression CI scenarios, performance and calibration evidence, documentation polish, packaging, and release readiness.
+The planned Sprint 0–5 MVP backlog is complete. Version 0.1.0 is the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
