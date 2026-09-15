@@ -27,6 +27,7 @@ The approved product, architecture, backlog, test strategy, traceability matrix,
 - [System design](docs/aidlc/AIDLC_02_System_Design.md)
 - [Product backlog](docs/aidlc/AIDLC_03_Product_Backlog.md)
 - [Sprint 4 execution record](docs/aidlc/AIDLC_04_Sprint_4_Execution_Record.md)
+- [Sprint 5 execution record](docs/aidlc/AIDLC_04_Sprint_5_Execution_Record.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Known limitations](docs/LIMITATIONS.md)
 - [ROI model](docs/ROI.md)
