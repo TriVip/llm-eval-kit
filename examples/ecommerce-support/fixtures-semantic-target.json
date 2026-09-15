@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "fixtures": {
+    "REFUND_SEMANTIC_001": {
+      "text": "I’m sorry, but the item is outside the return window of 14 days, so it is not eligible for return.",
+      "latencyMs": 5,
+      "usage": { "inputTokens": 35, "outputTokens": 24, "totalTokens": 59 }
+    }
+  }
+}

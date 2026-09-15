@@ -4,7 +4,7 @@ An automated quality engineering framework for testing, benchmarking, and regres
 
 ## Project status
 
-Phase 4 implementation is in progress. Sprint 2 provides an offline multi-case evaluation slice with targeted filters, deterministic text and JSON Schema evaluators, risk-based scoring, canonical artifacts, and CI-safe exit codes.
+Phase 4 implementation is in progress. Sprint 3 adds bounded concurrent execution, typed timeout/retry behavior, runtime cost budgets, normalized OpenAI and Gemini adapters, LLM-as-a-Judge, and human-review queue export. The default demo remains fully offline and free.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ The approved product, architecture, backlog, test strategy, traceability matrix,
 - [Framework prototype](docs/aidlc/LLM_Evaluation_Framework_Prototype.md)
 - [System design](docs/aidlc/AIDLC_02_System_Design.md)
 - [Product backlog](docs/aidlc/AIDLC_03_Product_Backlog.md)
-- [Sprint 2 execution record](docs/aidlc/AIDLC_04_Sprint_2_Execution_Record.md)
+- [Sprint 3 execution record](docs/aidlc/AIDLC_04_Sprint_3_Execution_Record.md)
 
 ## Development
 
@@ -70,6 +70,51 @@ node apps/cli/dist/index.js run \
 ```
 
 Exit codes are stable: `0` pass, `1` quality gate failure, `2` invalid input, `3` operationally unreliable run, and `4` internal/framework failure.
+
+## Provider execution
+
+Validate a real-provider configuration without making API calls:
+
+```bash
+node apps/cli/dist/index.js run \
+  --config examples/ecommerce-support/llmeval.openai.config.json \
+  --suite examples/ecommerce-support/suite.yaml \
+  --dry-run
+```
+
+To execute against OpenAI or Gemini, replace the placeholder model ID in the matching config and expose the API key only through the configured environment variable:
+
+```bash
+export OPENAI_API_KEY="..."
+node apps/cli/dist/index.js run \
+  --config examples/ecommerce-support/llmeval.openai.config.json \
+  --suite examples/ecommerce-support/suite.yaml
+```
+
+```bash
+export GEMINI_API_KEY="..."
+node apps/cli/dist/index.js run \
+  --config examples/ecommerce-support/llmeval.gemini.config.json \
+  --suite examples/ecommerce-support/suite.yaml
+```
+
+Token prices are deliberately not hard-coded because provider pricing changes. Add a reviewed `target.pricing` object with input/output USD per million tokens when cost tracking is required. Unknown usage or cost remains unavailable and is never reported as zero.
+
+For semantic evaluation, configure a separate `judge` target and use `llm_judge`, as demonstrated by `llmeval.semantic.openai.config.json` and `suite-semantic.yaml`. Judge output is schema-validated. Low-confidence model judgments become warnings and are exported to `reports/<run-id>/human-review.json`.
+
+Provider unit and contract tests use injected HTTP transports; the default CI never requires credentials or spends API budget.
+
+Run the semantic-evaluation and human-review flow entirely offline:
+
+```bash
+node apps/cli/dist/index.js run \
+  --config examples/ecommerce-support/llmeval.semantic.mock.config.json \
+  --suite examples/ecommerce-support/suite-semantic.yaml \
+  --fixtures examples/ecommerce-support/fixtures-semantic-target.json \
+  --judge-fixtures examples/ecommerce-support/fixtures-semantic-judge.json
+```
+
+This deliberate low-confidence judge result produces a `WARNING` case and one item in `human-review.json`.
 
 ## License
 

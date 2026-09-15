@@ -22,7 +22,7 @@ export const verdictSchema = z.enum(["PASS", "FAIL", "WARNING", "ERROR"]);
 
 export const modelTargetSchema = z
   .object({
-    provider: identifierSchema,
+    provider: z.enum(["mock", "openai", "gemini"]),
     model: z.string().min(1).max(200),
     apiKeyEnv: z
       .string()
@@ -30,6 +30,13 @@ export const modelTargetSchema = z
       .optional(),
     temperature: z.number().finite().min(0).max(2).optional(),
     maxOutputTokens: z.number().int().positive().optional(),
+    pricing: z
+      .object({
+        inputUsdPerMillionTokens: nonNegativeFiniteSchema,
+        outputUsdPerMillionTokens: nonNegativeFiniteSchema,
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -152,6 +159,18 @@ export const evaluationSuiteSchema = z
             });
           }
         }
+
+        if (
+          evaluator.type === "llm_judge" &&
+          evaluator.config.rubric !== undefined &&
+          (typeof evaluator.config.rubric !== "string" || evaluator.config.rubric.length === 0)
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "LLM judge rubric must be a non-empty string.",
+            path,
+          });
+        }
       });
     });
   });
@@ -244,7 +263,14 @@ export const runArtifactSchema = z
               .strict(),
           )
           .default([]),
+        totalLatencyMs: nonNegativeFiniteSchema.optional(),
+        averageLatencyMs: nonNegativeFiniteSchema.optional(),
+        totalInputTokens: z.number().int().nonnegative().optional(),
+        totalOutputTokens: z.number().int().nonnegative().optional(),
+        totalTokens: z.number().int().nonnegative().optional(),
         totalEstimatedCostUsd: nonNegativeFiniteSchema.optional(),
+        usageCoverage: probabilitySchema.default(0),
+        costCoverage: probabilitySchema.default(0),
       })
       .strict(),
     gateFailures: z.array(

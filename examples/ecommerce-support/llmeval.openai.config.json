@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "project": {
+    "id": "ecommerce-support-openai",
+    "name": "E-commerce Support — OpenAI"
+  },
+  "target": {
+    "provider": "openai",
+    "model": "YOUR_OPENAI_MODEL",
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "temperature": 0,
+    "maxOutputTokens": 300
+  },
+  "execution": {
+    "concurrency": 2,
+    "timeoutMs": 30000,
+    "maxRetries": 2,
+    "collectAllEvidence": false
+  },
+  "qualityGate": {},
+  "output": {
+    "directory": "reports",
+    "formats": ["terminal", "json"],
+    "retainRawResponses": false
+  }
+}

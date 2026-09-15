@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "project": {
+    "id": "ecommerce-support-gemini",
+    "name": "E-commerce Support — Gemini"
+  },
+  "target": {
+    "provider": "gemini",
+    "model": "YOUR_GEMINI_MODEL",
+    "apiKeyEnv": "GEMINI_API_KEY",
+    "temperature": 0,
+    "maxOutputTokens": 300
+  },
+  "execution": {
+    "concurrency": 2,
+    "timeoutMs": 30000,
+    "maxRetries": 2,
+    "collectAllEvidence": false
+  },
+  "qualityGate": {},
+  "output": {
+    "directory": "reports",
+    "formats": ["terminal", "json"],
+    "retainRawResponses": false
+  }
+}

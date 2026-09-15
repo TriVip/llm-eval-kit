@@ -2,26 +2,35 @@ import { dirname, resolve } from "node:path";
 
 import { Command, CommanderError } from "commander";
 
-import { writeRunArtifact } from "@llm-eval-kit/artifacts";
+import { writeHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
 import { loadEvaluationSuite, loadProjectConfig } from "@llm-eval-kit/config";
 import {
   ConfigurationError,
   DatasetValidationError,
   FrameworkError,
+  filterEvaluationSuite,
   runEvaluationSuite,
   type CaseFilters,
   type Evaluator,
   type RunArtifact,
   type Severity,
+  type LlmProvider,
+  type ModelTarget,
 } from "@llm-eval-kit/core";
 import {
   ContainsEvaluator,
   ExactMatchEvaluator,
   ForbiddenEvaluator,
   JsonSchemaEvaluator,
+  LlmJudgeEvaluator,
   RegexEvaluator,
 } from "@llm-eval-kit/evaluators";
-import { loadMockFixtureFile, MockProvider } from "@llm-eval-kit/providers";
+import {
+  GeminiProvider,
+  loadMockFixtureFile,
+  MockProvider,
+  OpenAiProvider,
+} from "@llm-eval-kit/providers";
 import { RiskScoringEngine } from "@llm-eval-kit/scoring";
 
 export type CliContext = {
@@ -33,7 +42,9 @@ export type CliContext = {
 type RunOptions = {
   config: string;
   suite: string;
-  fixtures: string;
+  fixtures?: string;
+  judgeFixtures?: string;
+  dryRun?: boolean;
   case?: string[];
   category?: string[];
   severity?: string[];
@@ -103,6 +114,29 @@ function caseFilters(options: RunOptions): CaseFilters {
   };
 }
 
+async function createProvider(
+  target: ModelTarget,
+  fixturePath: string | undefined,
+  cwd: string,
+): Promise<LlmProvider> {
+  if (target.provider === "mock") {
+    if (fixturePath === undefined) {
+      throw new ConfigurationError("The mock provider requires --fixtures <path>.");
+    }
+    const fixtureFile = await loadMockFixtureFile(resolve(cwd, fixturePath));
+    return new MockProvider(fixtureFile.fixtures);
+  }
+  if (target.provider === "openai") return new OpenAiProvider();
+  if (target.provider === "gemini") return new GeminiProvider();
+  throw new ConfigurationError(`Unsupported provider: ${target.provider}`);
+}
+
+function usesJudge(suite: Awaited<ReturnType<typeof loadEvaluationSuite>>): boolean {
+  return suite.cases.some((testCase) =>
+    testCase.evaluators.some((evaluator) => evaluator.type === "llm_judge"),
+  );
+}
+
 function statusExitCode(artifact: RunArtifact): number {
   if (artifact.status === "PASSED") return 0;
   return artifact.status === "QUALITY_FAILED" ? 1 : 3;
@@ -112,30 +146,64 @@ async function executeRun(options: RunOptions, context: Required<CliContext>): P
   const config = await loadProjectConfig(resolve(context.cwd, options.config));
   const suitePath = resolve(context.cwd, options.suite);
   const suite = await loadEvaluationSuite(suitePath);
+  const filters = caseFilters(options);
+  const selectedSuite = filterEvaluationSuite(suite, filters);
 
-  if (config.target.provider !== "mock") {
-    throw new ConfigurationError("Sprint 2 supports only the mock provider.");
+  if (options.dryRun === true) {
+    context.writeOut(
+      [
+        "Dry run: validation passed; no provider calls were made.",
+        `Provider: ${config.target.provider}`,
+        `Model: ${config.target.model}`,
+        `Selected cases: ${selectedSuite.cases.length}`,
+        `Maximum calls before retries/judging: ${selectedSuite.cases.length}`,
+        config.target.pricing === undefined
+          ? "Preflight cost: unavailable without observed token usage."
+          : "Preflight cost: pricing configured; exact cost requires observed token usage.",
+        "",
+      ].join("\n"),
+    );
+    return 0;
   }
 
-  const fixtureFile = await loadMockFixtureFile(resolve(context.cwd, options.fixtures));
-  const provider = new MockProvider(fixtureFile.fixtures);
+  const provider = await createProvider(config.target, options.fixtures, context.cwd);
+  if (usesJudge(selectedSuite) && config.judge === undefined) {
+    throw new ConfigurationError("Suite uses llm_judge but project config has no judge target.");
+  }
+  const evaluatorEntries: Array<[string, Evaluator<unknown>]> = [
+    ["exact_match", new ExactMatchEvaluator()],
+    ["contains", new ContainsEvaluator()],
+    ["forbidden", new ForbiddenEvaluator()],
+    ["regex", new RegexEvaluator()],
+    ["json_schema", new JsonSchemaEvaluator({ schemaRoot: dirname(suitePath) })],
+  ];
+  if (config.judge !== undefined) {
+    const judgeProvider = await createProvider(
+      config.judge,
+      options.judgeFixtures ?? options.fixtures,
+      context.cwd,
+    );
+    evaluatorEntries.push([
+      "llm_judge",
+      new LlmJudgeEvaluator({
+        provider: judgeProvider,
+        target: config.judge,
+        execution: config.execution,
+      }) as Evaluator<unknown>,
+    ]);
+  }
   const artifact = await runEvaluationSuite({
     config,
     suite,
     provider,
-    evaluators: new Map<string, Evaluator<unknown>>([
-      ["exact_match", new ExactMatchEvaluator()],
-      ["contains", new ContainsEvaluator()],
-      ["forbidden", new ForbiddenEvaluator()],
-      ["regex", new RegexEvaluator()],
-      ["json_schema", new JsonSchemaEvaluator({ schemaRoot: dirname(suitePath) })],
-    ]),
+    evaluators: new Map<string, Evaluator<unknown>>(evaluatorEntries),
     scoring: new RiskScoringEngine(),
-    filters: caseFilters(options),
+    filters,
   });
   let artifactPath: string;
   try {
     artifactPath = await writeRunArtifact(artifact, resolve(context.cwd, config.output.directory));
+    await writeHumanReviewQueue(artifact, resolve(context.cwd, config.output.directory));
   } catch (error) {
     if (artifact.status !== "PASSED") {
       context.writeErr(
@@ -174,7 +242,9 @@ export async function runCli(argv: string[], providedContext: CliContext = {}): 
     .description("Run an evaluation suite.")
     .requiredOption("--config <path>", "project configuration file")
     .requiredOption("--suite <path>", "evaluation suite file")
-    .requiredOption("--fixtures <path>", "mock provider fixture file")
+    .option("--fixtures <path>", "mock provider fixture file")
+    .option("--judge-fixtures <path>", "separate mock fixture file for LLM-as-a-Judge")
+    .option("--dry-run", "validate and estimate calls without invoking providers")
     .option("--case <id>", "case ID filter (repeatable or comma-separated)", collectOption)
     .option("--category <name>", "category filter (repeatable or comma-separated)", collectOption)
     .option("--severity <level>", "severity filter (repeatable or comma-separated)", collectOption)

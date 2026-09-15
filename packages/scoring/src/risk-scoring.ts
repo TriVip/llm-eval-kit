@@ -153,6 +153,42 @@ export class RiskScoringEngine implements ScoringEngine {
     const knownCosts = cases
       .map((result) => result.generation?.usage.estimatedCostUsd)
       .filter((cost): cost is number => cost !== undefined);
+    const generations = cases.flatMap((result) =>
+      result.generation === undefined ? [] : [result.generation],
+    );
+    const modelEvaluations = cases.flatMap((result) =>
+      result.evaluations.filter((evaluation) => evaluation.kind === "MODEL_BASED"),
+    );
+    const usageRecords = [
+      ...generations.map(({ usage }) => usage),
+      ...modelEvaluations.map(({ usage }) => usage ?? {}),
+    ];
+    const knownInputTokens = usageRecords
+      .map((usage) => usage.inputTokens)
+      .filter((tokens): tokens is number => tokens !== undefined);
+    const knownOutputTokens = usageRecords
+      .map((usage) => usage.outputTokens)
+      .filter((tokens): tokens is number => tokens !== undefined);
+    const knownTotalTokens = usageRecords
+      .map((usage) => usage.totalTokens)
+      .filter((tokens): tokens is number => tokens !== undefined);
+    const usageMeasured = usageRecords.filter((usage) =>
+      [usage.inputTokens, usage.outputTokens, usage.totalTokens].some(
+        (value) => value !== undefined,
+      ),
+    ).length;
+    const modelEvaluationLatencyMs = modelEvaluations.reduce(
+      (total, evaluation) => total + evaluation.durationMs,
+      0,
+    );
+    const totalLatencyMs =
+      generations.reduce((total, result) => total + result.latencyMs, 0) + modelEvaluationLatencyMs;
+    const allKnownCosts = [
+      ...knownCosts,
+      ...modelEvaluations
+        .map((evaluation) => evaluation.usage?.estimatedCostUsd)
+        .filter((cost): cost is number => cost !== undefined),
+    ];
     const gateFailures: GateFailure[] = [];
 
     if (errorRate > policy.maximumErrorRate) {
@@ -162,6 +198,15 @@ export class RiskScoringEngine implements ScoringEngine {
         affectedCaseIds: cases
           .filter(({ verdict }) => verdict === "ERROR")
           .map(({ caseId }) => caseId),
+      });
+    }
+
+    const budgetExhaustedCases = cases.filter(({ errorCode }) => errorCode === "BUDGET_EXHAUSTED");
+    if (budgetExhaustedCases.length > 0) {
+      gateFailures.push({
+        code: "BUDGET_EXHAUSTED",
+        reason: "The configured cost budget was reached before all selected cases were scheduled.",
+        affectedCaseIds: budgetExhaustedCases.map(({ caseId }) => caseId),
       });
     }
 
@@ -196,8 +241,11 @@ export class RiskScoringEngine implements ScoringEngine {
       });
     }
 
-    const operationallyFailed = errorRate > policy.maximumErrorRate;
-    const qualityFailed = gateFailures.some((failure) => failure.code !== "OPERATIONAL_ERROR_RATE");
+    const operationallyFailed =
+      errorRate > policy.maximumErrorRate || budgetExhaustedCases.length > 0;
+    const qualityFailed = gateFailures.some(
+      (failure) => failure.code !== "OPERATIONAL_ERROR_RATE" && failure.code !== "BUDGET_EXHAUSTED",
+    );
 
     return {
       artifactSchemaVersion: ARTIFACT_SCHEMA_VERSION,
@@ -217,9 +265,28 @@ export class RiskScoringEngine implements ScoringEngine {
         passRate,
         errorRate,
         categories,
-        ...(knownCosts.length === 0
+        usageCoverage: usageRecords.length === 0 ? 0 : usageMeasured / usageRecords.length,
+        costCoverage: usageRecords.length === 0 ? 0 : allKnownCosts.length / usageRecords.length,
+        ...(usageRecords.length === 0
           ? {}
-          : { totalEstimatedCostUsd: knownCosts.reduce((total, cost) => total + cost, 0) }),
+          : {
+              totalLatencyMs,
+              averageLatencyMs: totalLatencyMs / usageRecords.length,
+            }),
+        ...(knownInputTokens.length === 0
+          ? {}
+          : { totalInputTokens: knownInputTokens.reduce((total, tokens) => total + tokens, 0) }),
+        ...(knownOutputTokens.length === 0
+          ? {}
+          : { totalOutputTokens: knownOutputTokens.reduce((total, tokens) => total + tokens, 0) }),
+        ...(knownTotalTokens.length === 0
+          ? {}
+          : { totalTokens: knownTotalTokens.reduce((total, tokens) => total + tokens, 0) }),
+        ...(allKnownCosts.length === 0
+          ? {}
+          : {
+              totalEstimatedCostUsd: allKnownCosts.reduce((total, cost) => total + cost, 0),
+            }),
       },
       gateFailures,
       cases,

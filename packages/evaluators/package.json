@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@llm-eval-kit/core": "workspace:*",
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "zod": "^4.6.5"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

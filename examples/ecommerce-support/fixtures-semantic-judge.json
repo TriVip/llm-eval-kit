@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "fixtures": {
+    "REFUND_SEMANTIC_001": {
+      "text": "{\"verdict\":\"PASS\",\"score\":0.9,\"confidence\":0.6,\"reason\":\"The answer is grounded in the 14-day policy, but the politeness criterion is subjective.\",\"evidence\":{\"policyDays\":14}}",
+      "latencyMs": 8,
+      "usage": { "inputTokens": 180, "outputTokens": 55, "totalTokens": 235 }
+    }
+  }
+}

@@ -101,6 +101,60 @@ describe("project config schema", () => {
       }),
     ).toThrow();
   });
+
+  it("accepts explicit non-negative token pricing and rejects stale-looking invalid values", () => {
+    const config = parseProjectConfig({
+      schemaVersion: "1.0",
+      project: { id: "demo", name: "Demo" },
+      target: {
+        provider: "openai",
+        model: "model",
+        pricing: { inputUsdPerMillionTokens: 1, outputUsdPerMillionTokens: 2 },
+      },
+      execution: {},
+      qualityGate: {},
+      output: { formats: ["json"] },
+    });
+    expect(config.target.pricing).toEqual({
+      inputUsdPerMillionTokens: 1,
+      outputUsdPerMillionTokens: 2,
+    });
+    expect(() =>
+      parseProjectConfig({
+        ...config,
+        target: {
+          ...config.target,
+          pricing: { inputUsdPerMillionTokens: -1, outputUsdPerMillionTokens: 2 },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects unsupported providers and invalid judge rubrics before execution", () => {
+    expect(() =>
+      parseProjectConfig({
+        schemaVersion: "1.0",
+        project: { id: "demo", name: "Demo" },
+        target: { provider: "unknown", model: "model" },
+        execution: {},
+        qualityGate: {},
+        output: { formats: ["json"] },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseEvaluationSuite({
+        schemaVersion: "1.0",
+        id: "judge",
+        name: "Judge",
+        cases: [
+          {
+            ...validCase,
+            evaluators: [{ id: "judge", type: "llm_judge", config: { rubric: 123 } }],
+          },
+        ],
+      }),
+    ).toThrow(/rubric/);
+  });
 });
 
 describe("run artifact schema", () => {
@@ -126,6 +180,8 @@ describe("run artifact schema", () => {
         passRate: 1,
         errorRate: 0,
         categories: [],
+        usageCoverage: 0,
+        costCoverage: 0,
       },
       gateFailures: [],
       cases: [],

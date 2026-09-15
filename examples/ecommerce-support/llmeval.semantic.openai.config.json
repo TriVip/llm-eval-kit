@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "project": {
+    "id": "ecommerce-support-semantic",
+    "name": "E-commerce Support — Semantic Evaluation"
+  },
+  "target": {
+    "provider": "openai",
+    "model": "YOUR_OPENAI_MODEL",
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "temperature": 0,
+    "maxOutputTokens": 300
+  },
+  "judge": {
+    "provider": "openai",
+    "model": "YOUR_OPENAI_JUDGE_MODEL",
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "temperature": 0,
+    "maxOutputTokens": 300
+  },
+  "execution": {
+    "concurrency": 2,
+    "timeoutMs": 30000,
+    "maxRetries": 2,
+    "collectAllEvidence": false
+  },
+  "qualityGate": {
+    "reviewThreshold": 0.7
+  },
+  "output": {
+    "directory": "reports",
+    "formats": ["terminal", "json"],
+    "retainRawResponses": false
+  }
+}

@@ -89,6 +89,9 @@ importers:
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/providers:
     dependencies:

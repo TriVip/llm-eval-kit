@@ -43,8 +43,13 @@ export class ProviderError extends FrameworkError {
 }
 
 export class EvaluatorError extends FrameworkError {
-  public constructor(safeMessage: string, retryable = false) {
-    super({ code: "EVALUATOR_ERROR", safeMessage, retryable });
+  public constructor(safeMessage: string, retryable = false, options: { cause?: unknown } = {}) {
+    super({
+      code: "EVALUATOR_ERROR",
+      safeMessage,
+      retryable,
+      ...(options.cause === undefined ? {} : { cause: options.cause }),
+    });
   }
 }
 

@@ -14,6 +14,12 @@ export type ModelTarget = {
   apiKeyEnv?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  pricing?: TokenPricing;
+};
+
+export type TokenPricing = {
+  inputUsdPerMillionTokens: number;
+  outputUsdPerMillionTokens: number;
 };
 
 export type ExecutionPolicy = {
@@ -123,10 +129,12 @@ export type GenerationResult = {
   providerRequestId?: string;
   resolvedProvider: string;
   resolvedModel: string;
+  attemptCount?: number;
 };
 
 export interface LlmProvider {
   readonly id: string;
+  readonly maxConcurrency?: number;
   generate(
     request: GenerationRequest,
     context: ProviderExecutionContext,
@@ -146,6 +154,7 @@ export type EvaluationResult = {
   confidence?: number;
   reason: string;
   evidence?: JsonValue;
+  usage?: UsageMetrics;
   durationMs: number;
 };
 
@@ -199,7 +208,31 @@ export type RunMetrics = {
   passRate: number;
   errorRate: number;
   categories: CategoryMetrics[];
+  totalLatencyMs?: number;
+  averageLatencyMs?: number;
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalTokens?: number;
   totalEstimatedCostUsd?: number;
+  usageCoverage: number;
+  costCoverage: number;
+};
+
+export type HumanReviewItem = {
+  caseId: string;
+  category: string;
+  severity: Severity;
+  verdict: Verdict;
+  score?: number;
+  confidence?: number;
+  reasons: string[];
+};
+
+export type HumanReviewQueue = {
+  schemaVersion: "1.0";
+  runId: string;
+  createdAt: string;
+  items: HumanReviewItem[];
 };
 
 export type CategoryRegression = {

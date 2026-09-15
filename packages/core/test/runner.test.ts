@@ -72,6 +72,8 @@ const scoring: ScoringEngine = {
         passRate: hasError ? 0 : 1,
         errorRate: hasError ? 1 : 0,
         categories: [],
+        usageCoverage: 0,
+        costCoverage: 0,
       },
       gateFailures: [],
       cases,

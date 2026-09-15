@@ -30,6 +30,8 @@ const artifact: RunArtifact = {
     passRate: 1,
     errorRate: 0,
     categories: [],
+    usageCoverage: 0,
+    costCoverage: 0,
   },
   gateFailures: [],
   cases: [],

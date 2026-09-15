@@ -15,6 +15,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 9. [Sprint 0 Execution Record](AIDLC_04_Sprint_0_Execution_Record.md) — repository and contract foundation evidence.
 10. [Sprint 1 Execution Record](AIDLC_04_Sprint_1_Execution_Record.md) — first offline vertical slice evidence.
 11. [Sprint 2 Execution Record](AIDLC_04_Sprint_2_Execution_Record.md) — evaluator pack and risk-based quality-gate evidence.
+12. [Sprint 3 Execution Record](AIDLC_04_Sprint_3_Execution_Record.md) — provider execution, semantic evaluation, and human-review evidence.
 
 ## Current delivery status
 
@@ -26,6 +27,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Phase 4 — Sprint 0 | Completed |
 | Phase 4 — Sprint 1 | Completed |
 | Phase 4 — Sprint 2 | Completed |
-| Phase 4 — Sprint 3 | Ready to start |
+| Phase 4 — Sprint 3 | Completed |
+| Phase 4 — Sprint 4 | Ready to start |
 
-Sprint 3 covers T-020 through T-026: bounded concurrency, timeout/retry normalization, usage and cost accounting, OpenAI and Gemini adapters, LLM-as-a-Judge, and human-review export.
+Sprint 4 covers T-027 through T-033: baseline compatibility and comparison, explicit promotion, structured redacted logs, final reporters, and the completed CLI command surface.

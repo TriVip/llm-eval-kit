@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "project": {
+    "id": "ecommerce-support-semantic-mock",
+    "name": "E-commerce Support — Offline Semantic Evaluation"
+  },
+  "target": {
+    "provider": "mock",
+    "model": "target-fixture-v1"
+  },
+  "judge": {
+    "provider": "mock",
+    "model": "judge-fixture-v1"
+  },
+  "execution": {
+    "concurrency": 2,
+    "timeoutMs": 30000,
+    "maxRetries": 0,
+    "collectAllEvidence": false
+  },
+  "qualityGate": {
+    "minimumPassRate": 0,
+    "reviewThreshold": 0.7
+  },
+  "output": {
+    "directory": "reports",
+    "formats": ["terminal", "json"],
+    "retainRawResponses": false
+  }
+}

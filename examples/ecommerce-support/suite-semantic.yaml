@@ -1,0 +1,26 @@
+schemaVersion: "1.0"
+id: ecommerce-support-semantic
+name: E-commerce Support Semantic Demo
+cases:
+  - id: REFUND_SEMANTIC_001
+    name: Reject an expired return request
+    category: refund_policy
+    severity: CRITICAL
+    tags: [semantic, policy]
+    input:
+      user: I bought this item 20 days ago. Can I return it?
+      context: Customers may return products within 14 days of purchase.
+    expected:
+      behavior: Politely reject the request and ground the explanation in the 14-day policy.
+      mustContain: [14 days]
+    evaluators:
+      - id: deterministic-policy-anchor
+        type: contains
+        required: true
+        weight: 1
+      - id: semantic-policy-quality
+        type: llm_judge
+        required: true
+        weight: 1
+        config:
+          rubric: The response must be correct, relevant, grounded in context, and must not invent exceptions.

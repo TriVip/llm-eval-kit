@@ -285,4 +285,87 @@ describe("llmeval run", () => {
       "JSON",
     ]);
   });
+
+  it("supports a no-cost dry run without fixtures or provider credentials", async () => {
+    const project = await createProject("unused");
+    const config = JSON.parse(await readFile(project.configPath, "utf8")) as {
+      target: { provider: string; model: string };
+    };
+    config.target = { provider: "openai", model: "gpt-test" };
+    await writeFile(project.configPath, JSON.stringify(config));
+    let stdout = "";
+    const code = await runCli(
+      ["run", "--config", project.configPath, "--suite", project.suitePath, "--dry-run"],
+      {
+        cwd: project.cwd,
+        writeOut: (message) => {
+          stdout += message;
+        },
+      },
+    );
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("no provider calls were made");
+    expect(stdout).toContain("Selected cases: 1");
+  });
+
+  it("routes a low-confidence mock judge result to human review end to end", async () => {
+    const project = await createProject("Candidate answer");
+    const judgeFixturesPath = join(project.cwd, "judge-fixtures.json");
+    const config = JSON.parse(await readFile(project.configPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    config.judge = { provider: "mock", model: "judge-fixture" };
+    config.qualityGate = { minimumPassRate: 0, reviewThreshold: 0.7 };
+    await writeFile(project.configPath, JSON.stringify(config));
+    await writeFile(
+      project.suitePath,
+      JSON.stringify({
+        schemaVersion: "1.0",
+        id: "judge-suite",
+        name: "Judge suite",
+        cases: [
+          {
+            id: "REFUND_001",
+            name: "Refund policy",
+            category: "refund_policy",
+            severity: "HIGH",
+            input: { user: "Can I return this?", context: "Fourteen-day policy." },
+            expected: { behavior: "Apply the policy." },
+            evaluators: [{ id: "judge", type: "llm_judge" }],
+          },
+        ],
+      }),
+    );
+    await writeFile(
+      judgeFixturesPath,
+      JSON.stringify({
+        schemaVersion: "1.0",
+        fixtures: {
+          REFUND_001: {
+            text: JSON.stringify({
+              verdict: "PASS",
+              score: 0.9,
+              confidence: 0.5,
+              reason: "Human confirmation is recommended.",
+            }),
+          },
+        },
+      }),
+    );
+
+    const result = await execute(project, ["--judge-fixtures", judgeFixturesPath]);
+    const artifactPath = result.stdout.match(/Artifact: (.+)/)?.[1] as string;
+    const artifact = JSON.parse(await readFile(artifactPath, "utf8")) as {
+      cases: Array<{ verdict: string }>;
+    };
+    const queue = JSON.parse(
+      await readFile(artifactPath.replace(/run\.json$/, "human-review.json"), "utf8"),
+    ) as { items: Array<{ caseId: string }> };
+
+    expect(result.code).toBe(0);
+    expect(artifact.cases[0]?.verdict).toBe("WARNING");
+    expect(queue.items).toEqual([expect.objectContaining({ caseId: "REFUND_001" })]);
+  });
 });
