@@ -1,0 +1,22 @@
+{
+  "name": "@llm-eval-kit/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "llmeval": "./dist/index.js"
+  },
+  "dependencies": {
+    "@llm-eval-kit/artifacts": "workspace:*",
+    "@llm-eval-kit/config": "workspace:*",
+    "@llm-eval-kit/core": "workspace:*",
+    "@llm-eval-kit/evaluators": "workspace:*",
+    "@llm-eval-kit/providers": "workspace:*",
+    "@llm-eval-kit/scoring": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

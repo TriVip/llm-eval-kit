@@ -1,0 +1,22 @@
+schemaVersion: "1.0"
+id: ecommerce-support
+name: Invalid duplicate suite
+cases:
+  - id: REFUND_001
+    name: First case
+    category: refund_policy
+    severity: CRITICAL
+    input:
+      user: First
+    evaluators:
+      - id: exact-one
+        type: exact_match
+  - id: REFUND_001
+    name: Duplicate case
+    category: refund_policy
+    severity: HIGH
+    input:
+      user: Duplicate
+    evaluators:
+      - id: exact-two
+        type: exact_match

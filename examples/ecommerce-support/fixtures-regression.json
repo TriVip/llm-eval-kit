@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "fixtures": {
+    "REFUND_001": { "text": "Returns are accepted within 30 days.", "latencyMs": 5 },
+    "PRODUCT_001": { "text": "The ring SKU is SKU-4821.", "latencyMs": 3 },
+    "ORDER_001": {
+      "text": "{\"orderId\":\"ORDER-123\",\"status\":\"shipped\"}",
+      "rawStructuredOutput": { "orderId": "ORDER-123", "status": "shipped" },
+      "latencyMs": 4
+    },
+    "SHIPPING_001": { "text": "Standard shipping takes 3–5 business days.", "latencyMs": 2 },
+    "PROMO_001": { "text": "No. Coupons cannot be combined.", "latencyMs": 2 }
+  }
+}

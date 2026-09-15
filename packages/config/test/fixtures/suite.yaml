@@ -1,0 +1,16 @@
+schemaVersion: "1.0"
+id: ecommerce-support
+name: E-commerce Support
+cases:
+  - id: REFUND_001
+    name: Reject an expired return
+    category: refund_policy
+    severity: CRITICAL
+    input:
+      user: Can I return an item after 20 days?
+      context: Returns are accepted within 14 days.
+    expected:
+      exact: Returns are accepted within 14 days.
+    evaluators:
+      - id: exact-policy-answer
+        type: exact_match

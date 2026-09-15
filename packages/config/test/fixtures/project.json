@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "project": {
+    "id": "ecommerce-support",
+    "name": "E-commerce Support"
+  },
+  "target": {
+    "provider": "mock",
+    "model": "fixture-v1"
+  },
+  "execution": {},
+  "qualityGate": {},
+  "output": {
+    "directory": "reports",
+    "formats": ["terminal", "json"]
+  }
+}

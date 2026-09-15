@@ -1,0 +1,80 @@
+schemaVersion: "1.0"
+id: ecommerce-support
+name: E-commerce Support Demo
+cases:
+  - id: REFUND_001
+    name: Return window answer
+    category: refund_policy
+    severity: CRITICAL
+    tags: [smoke, policy]
+    input:
+      user: What is the return window?
+      context: Returns are accepted within 14 days.
+    expected:
+      mustContain: [14 days]
+      mustNotContain: [30 days]
+    evaluators:
+      - id: required-return-window
+        type: contains
+        config:
+          caseSensitive: false
+      - id: forbidden-return-window
+        type: forbidden
+        config:
+          caseSensitive: false
+
+  - id: PRODUCT_001
+    name: Product SKU format
+    category: product_information
+    severity: MEDIUM
+    tags: [smoke]
+    input:
+      user: Give me the SKU for the ring.
+    evaluators:
+      - id: sku-format
+        type: regex
+        config:
+          pattern: "SKU-[0-9]{4}"
+
+  - id: ORDER_001
+    name: Structured order status
+    category: order_status
+    severity: HIGH
+    tags: [contract]
+    input:
+      user: Return order status as JSON.
+    expected:
+      jsonSchemaRef: schemas/order-status.schema.json
+    evaluators:
+      - id: order-status-contract
+        type: json_schema
+
+  - id: SHIPPING_001
+    name: Shipping promise
+    category: shipping
+    severity: HIGH
+    tags: [policy]
+    input:
+      user: When will standard shipping arrive?
+      context: Standard shipping takes 3–5 business days.
+    expected:
+      mustContain: [3–5 business days]
+    evaluators:
+      - id: shipping-window
+        type: contains
+
+  - id: PROMO_001
+    name: Promotion stacking restriction
+    category: promotions
+    severity: CRITICAL
+    tags: [policy]
+    input:
+      user: Can I stack two coupons?
+      context: Coupons cannot be combined.
+    expected:
+      mustNotContain: [you can combine, stack two coupons]
+    evaluators:
+      - id: no-invalid-stacking
+        type: forbidden
+        config:
+          caseSensitive: false
