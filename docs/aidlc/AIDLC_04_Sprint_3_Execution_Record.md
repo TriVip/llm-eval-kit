@@ -4,7 +4,11 @@
 **Sprint:** Sprint 3 — Provider execution and semantic evaluation  
 **Execution date:** 2026-09-15  
 **Status:** COMPLETED  
-**Implementation commit:** `5f014a3b02e6f1b0a77af89b823c5c07333b9f43`
+**Local implementation commit:** `5f014a3b02e6f1b0a77af89b823c5c07333b9f43`
+
+**Remote publication commit:** `70f374e5f3fc2a644c05ea17928579227d94fbf5`
+
+**GitHub Actions:** [CI run 34946914149 — PASS](https://github.com/TriVip/llm-eval-kit/actions/runs/34946914149)
 
 ## 1. Sprint goal
 
@@ -94,6 +98,7 @@ When model-based confidence is below `qualityGate.reviewThreshold`, case aggrega
 | Peer dependencies | PASS |
 | Secret pattern scan | PASS, no tracked `.env` or matched credential files |
 | Git whitespace check | PASS |
+| GitHub Actions | PASS, quality, dependency audit, and secret scan |
 
 Commands used:
 
