@@ -18,6 +18,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 12. [Sprint 3 Execution Record](AIDLC_04_Sprint_3_Execution_Record.md) — provider execution, semantic evaluation, and human-review evidence.
 13. [Sprint 4 Execution Record](AIDLC_04_Sprint_4_Execution_Record.md) — baseline regression, redacted observability, reporting, and final CLI evidence.
 14. [Sprint 5 Execution Record](AIDLC_04_Sprint_5_Execution_Record.md) — portfolio dataset, CI demonstrations, hardening, calibration, and release evidence.
+15. [Product Phase 2 — UI Inception & Requirements](AIDLC_P2_01_UI_Inception_and_Requirements.md) — review baseline for the Local Evaluation Studio.
 
 ## Current delivery status
 
@@ -32,5 +33,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Phase 4 — Sprint 3 | Completed |
 | Phase 4 — Sprint 4 | Completed |
 | Phase 4 — Sprint 5 | Completed |
+| Product Phase 2 — UI Inception & Requirements | Awaiting approval |
 
 The planned Sprint 0–5 MVP backlog is complete. Version 0.1.0 is the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
