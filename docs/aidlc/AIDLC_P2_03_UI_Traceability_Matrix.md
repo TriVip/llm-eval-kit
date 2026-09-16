@@ -2,8 +2,9 @@
 
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **AIDLC stage:** 3 — Backlog & Test Design  
-> **Status:** REVIEW  
+> **Status:** APPROVED
 > **Date:** 2026-09-16
+> **Approved:** 2026-09-16 by project owner
 
 ## 1. Functional requirements
 
@@ -105,6 +106,6 @@
 
 ## 7. Stage gate
 
-**Status:** `AWAITING APPROVAL`
+**Status:** `PASSED`
 
-Implementation may begin only after the backlog, test strategy, this matrix, Definition of Ready/Done, estimates, and Sprint 6–10 sequencing are approved together.
+The project owner approved the backlog, test strategy, this matrix, Definition of Ready/Done, estimates, and Sprint 6–10 sequencing on 2026-09-16. Sprint 6 implementation may begin.

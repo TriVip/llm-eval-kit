@@ -3,8 +3,9 @@
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **Product increment:** Local Evaluation Studio  
 > **AIDLC stage:** 3 — Backlog & Test Design  
-> **Status:** REVIEW  
+> **Status:** APPROVED
 > **Date:** 2026-09-16  
+> **Approved:** 2026-09-16 by project owner
 > **Inputs:** Approved UI Stage 1 requirements and Stage 2 system design/ADRs
 
 ## 1. Delivery strategy
@@ -222,6 +223,6 @@ Human review is mandatory for security controls, baseline behavior, visual direc
 
 ## 11. Stage gate
 
-**Status:** `AWAITING APPROVAL`
+**Status:** `PASSED`
 
-Implementation may start at Sprint 6 / UI-T001 only after the project owner approves this backlog together with the test strategy and traceability matrix.
+The project owner approved this backlog, test strategy, and traceability baseline on 2026-09-16. Implementation may start at Sprint 6 / UI-T001.

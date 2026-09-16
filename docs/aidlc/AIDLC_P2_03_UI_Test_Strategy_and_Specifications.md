@@ -2,8 +2,9 @@
 
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **AIDLC stage:** 3 — Backlog & Test Design  
-> **Status:** REVIEW  
+> **Status:** APPROVED
 > **Date:** 2026-09-16
+> **Approved:** 2026-09-16 by project owner
 
 ## 1. Quality objective
 
@@ -252,6 +253,6 @@ Release blocks on:
 
 ## 12. Stage gate
 
-**Status:** `AWAITING APPROVAL`
+**Status:** `PASSED`
 
-This strategy becomes binding for implementation after Stage 3 approval. Test IDs may be split for execution detail but their risk coverage cannot be silently removed.
+This strategy is binding for implementation from 2026-09-16. Test IDs may be split for execution detail but their risk coverage cannot be silently removed.
