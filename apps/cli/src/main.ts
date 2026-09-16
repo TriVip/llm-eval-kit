@@ -2,43 +2,24 @@ import { dirname, join, resolve } from "node:path";
 
 import { Command, CommanderError } from "commander";
 
-import { promoteBaseline, writeHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
+import { writeHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
 import { loadEvaluationSuite, loadProjectConfig, loadRunArtifact } from "@llm-eval-kit/config";
 import {
-  compareRunArtifacts,
   ConfigurationError,
   DatasetValidationError,
   FrameworkError,
-  filterEvaluationSuite,
   redactRunArtifact,
-  runEvaluationSuite,
   type CaseFilters,
-  type Evaluator,
   type RunArtifact,
   type Severity,
-  type LlmProvider,
-  type ModelTarget,
 } from "@llm-eval-kit/core";
-import {
-  ContainsEvaluator,
-  ExactMatchEvaluator,
-  ForbiddenEvaluator,
-  JsonSchemaEvaluator,
-  LlmJudgeEvaluator,
-  RegexEvaluator,
-} from "@llm-eval-kit/evaluators";
-import {
-  GeminiProvider,
-  loadMockFixtureFile,
-  MockProvider,
-  OpenAiProvider,
-} from "@llm-eval-kit/providers";
-import { RiskScoringEngine } from "@llm-eval-kit/scoring";
+import { loadMockFixtureFile, type MockFixtureFile } from "@llm-eval-kit/providers";
 import {
   appendStructuredLog,
   renderTerminalReport,
   writeHtmlReport,
 } from "@llm-eval-kit/reporters";
+import { createEvaluationApplication } from "@llm-eval-kit/sdk";
 
 export type CliContext = {
   cwd?: string;
@@ -112,27 +93,18 @@ function caseFilters(options: RunOptions): CaseFilters {
   };
 }
 
-async function createProvider(
-  target: ModelTarget,
+const application = createEvaluationApplication();
+
+async function mockFixtures(
+  provider: string,
   fixturePath: string | undefined,
   cwd: string,
-): Promise<LlmProvider> {
-  if (target.provider === "mock") {
-    if (fixturePath === undefined) {
-      throw new ConfigurationError("The mock provider requires --fixtures <path>.");
-    }
-    const fixtureFile = await loadMockFixtureFile(resolve(cwd, fixturePath));
-    return new MockProvider(fixtureFile.fixtures);
+): Promise<MockFixtureFile | undefined> {
+  if (provider !== "mock") return undefined;
+  if (fixturePath === undefined) {
+    throw new ConfigurationError("The mock provider requires --fixtures <path>.");
   }
-  if (target.provider === "openai") return new OpenAiProvider();
-  if (target.provider === "gemini") return new GeminiProvider();
-  throw new ConfigurationError(`Unsupported provider: ${target.provider}`);
-}
-
-function usesJudge(suite: Awaited<ReturnType<typeof loadEvaluationSuite>>): boolean {
-  return suite.cases.some((testCase) =>
-    testCase.evaluators.some((evaluator) => evaluator.type === "llm_judge"),
-  );
+  return loadMockFixtureFile(resolve(cwd, fixturePath));
 }
 
 function statusExitCode(artifact: RunArtifact): number {
@@ -145,18 +117,18 @@ async function executeRun(options: RunOptions, context: Required<CliContext>): P
   const suitePath = resolve(context.cwd, options.suite);
   const suite = await loadEvaluationSuite(suitePath);
   const filters = caseFilters(options);
-  const selectedSuite = filterEvaluationSuite(suite, filters);
+  const plan = application.plan(config, suite, filters);
   const outputRoot = resolve(context.cwd, config.output.directory);
 
   if (options.dryRun === true) {
     context.writeOut(
       [
         "Dry run: validation passed; no provider calls were made.",
-        `Provider: ${config.target.provider}`,
-        `Model: ${config.target.model}`,
-        `Selected cases: ${selectedSuite.cases.length}`,
-        `Maximum calls before retries/judging: ${selectedSuite.cases.length}`,
-        config.target.pricing === undefined
+        `Provider: ${plan.provider}`,
+        `Model: ${plan.model}`,
+        `Selected cases: ${plan.selectedCases}`,
+        `Maximum calls before retries/judging: ${plan.maximumCalls}`,
+        plan.preflightCost === "UNAVAILABLE"
           ? "Preflight cost: unavailable without observed token usage."
           : "Preflight cost: pricing configured; exact cost requires observed token usage.",
         "",
@@ -165,43 +137,26 @@ async function executeRun(options: RunOptions, context: Required<CliContext>): P
     return 0;
   }
 
-  const provider = await createProvider(config.target, options.fixtures, context.cwd);
-  if (usesJudge(selectedSuite) && config.judge === undefined) {
-    throw new ConfigurationError("Suite uses llm_judge but project config has no judge target.");
-  }
-  const evaluatorEntries: Array<[string, Evaluator<unknown>]> = [
-    ["exact_match", new ExactMatchEvaluator()],
-    ["contains", new ContainsEvaluator()],
-    ["forbidden", new ForbiddenEvaluator()],
-    ["regex", new RegexEvaluator()],
-    ["json_schema", new JsonSchemaEvaluator({ schemaRoot: dirname(suitePath) })],
-  ];
-  if (config.judge !== undefined) {
-    const judgeProvider = await createProvider(
-      config.judge,
-      options.judgeFixtures ?? options.fixtures,
-      context.cwd,
-    );
-    evaluatorEntries.push([
-      "llm_judge",
-      new LlmJudgeEvaluator({
-        provider: judgeProvider,
-        target: config.judge,
-        execution: config.execution,
-      }) as Evaluator<unknown>,
-    ]);
-  }
-  const artifact = await runEvaluationSuite(
+  const targetFixtures = await mockFixtures(config.target.provider, options.fixtures, context.cwd);
+  const judgeFixtures =
+    config.judge === undefined
+      ? undefined
+      : await mockFixtures(
+          config.judge.provider,
+          options.judgeFixtures ?? options.fixtures,
+          context.cwd,
+        );
+  const artifact = await application.run(
     {
       config,
       suite,
-      provider,
-      evaluators: new Map<string, Evaluator<unknown>>(evaluatorEntries),
-      scoring: new RiskScoringEngine(),
+      schemaRoot: dirname(suitePath),
       filters,
+      ...(targetFixtures === undefined ? {} : { targetFixtures }),
+      ...(judgeFixtures === undefined ? {} : { judgeFixtures }),
     },
     {
-      logEvent: async (event) => {
+      onEvent: async (event) => {
         await appendStructuredLog(join(outputRoot, event.runId, "logs.ndjson"), {
           timestamp: new Date().toISOString(),
           level: event.status === "failed" ? "error" : "info",
@@ -266,8 +221,9 @@ async function executeValidate(
 ): Promise<number> {
   const config = await loadProjectConfig(resolve(context.cwd, options.config));
   const suite = await loadEvaluationSuite(resolve(context.cwd, options.suite));
+  const validation = application.validate(config, suite);
   context.writeOut(
-    `Validation passed: ${config.project.id}/${suite.id} (${suite.cases.length} cases)\n`,
+    `Validation passed: ${validation.projectId}/${validation.suiteId} (${validation.caseCount} cases)\n`,
   );
   return 0;
 }
@@ -282,7 +238,9 @@ async function executeCompare(
   }
   const candidate = await loadRunArtifact(resolve(context.cwd, options.run));
   const baseline = await loadRunArtifact(resolve(context.cwd, options.baseline));
-  const comparison = compareRunArtifacts(candidate, baseline, {
+  const comparison = application.compare({
+    candidate,
+    baseline,
     maximumCategoryRegressionPoints: maximum,
   });
   context.writeOut(`${JSON.stringify(comparison, null, 2)}\n`);
@@ -294,11 +252,11 @@ async function executeBaselineSave(
   context: Required<CliContext>,
 ): Promise<number> {
   const artifact = await loadRunArtifact(resolve(context.cwd, options.run));
-  const output = await promoteBaseline(
+  const output = await application.promote({
     artifact,
-    resolve(context.cwd, options.output),
-    options.overwrite === undefined ? {} : { overwrite: options.overwrite },
-  );
+    outputPath: resolve(context.cwd, options.output),
+    ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }),
+  });
   context.writeOut(`Baseline promoted: ${output}\n`);
   return 0;
 }
@@ -311,10 +269,10 @@ async function executeReport(
   const comparison =
     options.baseline === undefined
       ? undefined
-      : compareRunArtifacts(
-          artifact,
-          await loadRunArtifact(resolve(context.cwd, options.baseline)),
-        );
+      : application.compare({
+          candidate: artifact,
+          baseline: await loadRunArtifact(resolve(context.cwd, options.baseline)),
+        });
   if (options.format === "terminal") {
     context.writeOut(renderTerminalReport(artifact, [], comparison));
     return 0;

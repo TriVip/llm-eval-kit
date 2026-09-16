@@ -44,21 +44,24 @@ importers:
       '@llm-eval-kit/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@llm-eval-kit/evaluators':
-        specifier: workspace:*
-        version: link:../../packages/evaluators
       '@llm-eval-kit/providers':
         specifier: workspace:*
         version: link:../../packages/providers
       '@llm-eval-kit/reporters':
         specifier: workspace:*
         version: link:../../packages/reporters
-      '@llm-eval-kit/scoring':
+      '@llm-eval-kit/sdk':
         specifier: workspace:*
-        version: link:../../packages/scoring
+        version: link:../../packages/sdk
       commander:
         specifier: ^15.0.0
         version: 15.0.0
+
+  packages/api-contracts:
+    dependencies:
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/artifacts:
     dependencies:
@@ -113,6 +116,24 @@ importers:
       '@llm-eval-kit/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/sdk:
+    dependencies:
+      '@llm-eval-kit/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
+      '@llm-eval-kit/core':
+        specifier: workspace:*
+        version: link:../core
+      '@llm-eval-kit/evaluators':
+        specifier: workspace:*
+        version: link:../evaluators
+      '@llm-eval-kit/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@llm-eval-kit/scoring':
+        specifier: workspace:*
+        version: link:../scoring
 
 packages:
 
