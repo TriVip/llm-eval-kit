@@ -148,6 +148,22 @@ Token prices are deliberately not hard-coded because provider pricing changes. A
 
 For semantic evaluation, configure a separate `judge` target and use `llm_judge`, as demonstrated by `llmeval.semantic.openai.config.json` and `suite-semantic.yaml`. Judge output is schema-validated. Low-confidence model judgments become warnings and are exported to `reports/<run-id>/human-review.json`.
 
+## Local Evaluation Studio preview
+
+Sprint 7 adds a secure read-only Studio preview. It displays registered projects, provider readiness, guided scenarios, and schema-valid canonical artifacts. Starting evaluations from the browser is intentionally disabled until the controlled run lifecycle lands in Sprint 8.
+
+After `pnpm install`, use two terminals:
+
+```bash
+# Terminal 1 — loopback API
+pnpm studio:api
+
+# Terminal 2 — React/Vite UI
+pnpm studio:web
+```
+
+Open `http://127.0.0.1:4173`. The API binds only to `127.0.0.1:4317`; the browser receives opaque IDs and redacted evidence, never unrestricted filesystem paths or provider secrets.
+
 Provider unit and contract tests use injected HTTP transports; the default CI never requires credentials or spends API budget.
 
 Run optional provider smoke policy locally. Missing keys/models produce explicit skips and exit successfully; no paid request is made:

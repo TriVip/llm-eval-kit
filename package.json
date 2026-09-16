@@ -21,6 +21,8 @@
     "provider:smoke": "pnpm build && node scripts/provider-smoke.mjs",
     "portfolio:verify": "pnpm build && node scripts/verify-portfolio.mjs",
     "benchmark:mock": "vitest run packages/core/test/performance.test.ts",
+    "studio:api": "pnpm --filter @llm-eval-kit/studio-api build && pnpm --filter @llm-eval-kit/studio-api start",
+    "studio:web": "pnpm --filter @llm-eval-kit/studio-web dev",
     "release:verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test:coverage && pnpm calibration:verify && node scripts/verify-portfolio.mjs && node scripts/provider-smoke.mjs && node scripts/verify-release.mjs"
   },
   "devDependencies": {

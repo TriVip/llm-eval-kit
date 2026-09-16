@@ -95,10 +95,68 @@ export const projectSummarySchema = z
   })
   .strict();
 
+export const providerReadinessSchema = z
+  .object({
+    id: identifier,
+    provider: z.string().min(1),
+    model: z.string().min(1),
+    ready: z.boolean(),
+  })
+  .strict();
+
+export const projectDetailSchema = z
+  .object({
+    id: identifier,
+    name: z.string().min(1),
+    targets: z.array(providerReadinessSchema),
+    suites: z.array(
+      z
+        .object({
+          id: identifier,
+          name: z.string().min(1),
+          caseCount: z.number().int().nonnegative(),
+          fixtureSets: z.array(z.object({ id: identifier }).strict()),
+        })
+        .strict(),
+    ),
+    scenarios: z.array(
+      z
+        .object({
+          id: identifier,
+          name: z.string().min(1),
+          targetId: identifier,
+          suiteId: identifier,
+          fixtureSetId: identifier.optional(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
+export const artifactSummarySchema = z
+  .object({
+    id: identifier,
+    runId: identifier,
+    projectId: identifier.optional(),
+    suiteId: identifier.optional(),
+    status: z.enum(["PASSED", "QUALITY_FAILED", "OPERATIONAL_FAILED"]),
+    startedAt: z.string().datetime(),
+    completedAt: z.string().datetime().optional(),
+    selectedCases: z.number().int().nonnegative(),
+    passRate: z.number().min(0).max(1),
+    errorRate: z.number().min(0).max(1),
+  })
+  .strict();
+
 export const studioBootstrapResponseSchema = z
   .object({
     apiVersion: z.literal(STUDIO_API_VERSION),
+    csrfToken: identifier,
+    capabilities: z
+      .object({ readArtifacts: z.literal(true), runEvaluations: z.boolean() })
+      .strict(),
     projects: z.array(projectSummarySchema),
+    artifacts: z.array(artifactSummarySchema),
   })
   .strict();
 
@@ -108,3 +166,5 @@ export type RunAcceptedResponse = z.infer<typeof runAcceptedResponseSchema>;
 export type StudioProblem = z.infer<typeof studioProblemSchema>;
 export type SafeRunEvent = z.infer<typeof safeRunEventSchema>;
 export type StudioBootstrapResponse = z.infer<typeof studioBootstrapResponseSchema>;
+export type ProjectDetail = z.infer<typeof projectDetailSchema>;
+export type ArtifactSummary = z.infer<typeof artifactSummarySchema>;
