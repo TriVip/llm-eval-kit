@@ -19,8 +19,11 @@ This directory is the source of truth for the product, architecture, delivery pl
 13. [Sprint 4 Execution Record](AIDLC_04_Sprint_4_Execution_Record.md) — baseline regression, redacted observability, reporting, and final CLI evidence.
 14. [Sprint 5 Execution Record](AIDLC_04_Sprint_5_Execution_Record.md) — portfolio dataset, CI demonstrations, hardening, calibration, and release evidence.
 15. [Product Phase 2 — UI Inception & Requirements](AIDLC_P2_01_UI_Inception_and_Requirements.md) — review baseline for the Local Evaluation Studio.
-16. [Product Phase 2 — UI System Design](AIDLC_P2_02_UI_System_Design.md) — proposed SDK, local API, React, security, lifecycle, and compatibility design.
-17. [Product Phase 2 — UI ADRs and Traceability](AIDLC_P2_02_UI_ADR_and_Traceability.md) — proposed decisions and complete UI requirement mapping.
+16. [Product Phase 2 — UI System Design](AIDLC_P2_02_UI_System_Design.md) — approved SDK, local API, React, security, lifecycle, and compatibility design.
+17. [Product Phase 2 — UI ADRs and Traceability](AIDLC_P2_02_UI_ADR_and_Traceability.md) — accepted decisions and complete UI requirement mapping.
+18. [Product Phase 2 — UI Backlog and Sprint Plan](AIDLC_P2_03_UI_Backlog_and_Sprint_Plan.md) — epics, stories, tasks, DoR/DoD, estimates, and Sprint 6–10 sequencing.
+19. [Product Phase 2 — UI Test Strategy](AIDLC_P2_03_UI_Test_Strategy_and_Specifications.md) — 68 test specifications and release quality gates.
+20. [Product Phase 2 — UI Traceability Matrix](AIDLC_P2_03_UI_Traceability_Matrix.md) — requirements, acceptance criteria, ADR, story, task, and test coverage.
 
 ## Current delivery status
 
@@ -37,5 +40,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Phase 4 — Sprint 5 | Completed |
 | Product Phase 2 — UI Inception & Requirements | Approved |
 | Product Phase 2 — UI System Design | Approved |
+| Product Phase 2 — UI Backlog & Test Design | Awaiting approval |
 
 The planned Sprint 0–5 MVP backlog is complete. Version 0.1.0 is the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
