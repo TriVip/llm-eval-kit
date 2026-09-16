@@ -29,6 +29,34 @@ afterEach(async () => {
 });
 
 describe("Studio API security and read endpoints", () => {
+  it("uses secure loopback defaults and accepts both default loopback hosts", async () => {
+    const reportRoot = join(tmpdir(), `studio-api-defaults-${crypto.randomUUID()}`);
+    await mkdir(reportRoot, { recursive: true });
+    const instance = await buildStudioServer({
+      workspaceRoot: resolve("."),
+      reportRoot,
+    });
+    servers.push(instance);
+
+    const primary = await instance.inject({
+      method: "GET",
+      url: "/api/v1/projects",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const localhost = await instance.inject({
+      method: "HEAD",
+      url: "/health",
+      headers: { host: "localhost:4317" },
+    });
+    const missingHost = await instance.inject({ method: "GET", url: "/health" });
+
+    expect(primary.statusCode).toBe(200);
+    expect(primary.json()[0]?.id).toBe("ecommerce-support");
+    expect(localhost.statusCode).toBe(200);
+    expect(missingHost.statusCode).toBe(403);
+    expect(missingHost.json().code).toBe("HOST_NOT_ALLOWED");
+  });
+
   it("returns safe contract-valid bootstrap and project data", async () => {
     const instance = await server({ OPENAI_API_KEY: "canary-do-not-leak" });
     const response = await instance.inject({

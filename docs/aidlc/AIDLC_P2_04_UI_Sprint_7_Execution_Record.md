@@ -56,17 +56,19 @@ The light technical-minimalist console includes:
 | Gate | Result |
 |---|---|
 | Full release verification | PASS |
-| Automated tests | 156/156 PASS across 32 files |
-| Statement coverage | 90.55% |
-| Branch coverage | 80.12% |
-| Function coverage | 90.69% |
-| Line coverage | 92.30% |
+| Automated tests | 157/157 PASS across 32 files |
+| Statement coverage | 90.22% |
+| Branch coverage | 80.03% |
+| Function coverage | 91.53% |
+| Line coverage | 91.92% |
 | ESLint / Prettier | PASS |
 | TypeScript build/typecheck | PASS across 12 buildable workspace projects |
 | Dependency audit | PASS; no known high vulnerabilities |
 | React production build | PASS; 447.15 kB JS / 138.19 kB gzip before Sprint 10 optimization |
 | API + Vite proxy runtime smoke | PASS; bundled project loaded and execution capability disabled |
 | CLI portfolio pass/regression | PASS; 64/64 and critical `REFUND_001` evidence unchanged |
+
+The first protected CI attempt exposed four uncovered default-configuration branches and correctly stopped at 79.64% branch coverage. A focused loopback-default and safe-method integration test was added; the threshold remained unchanged at 80%.
 
 ## 6. Visual verification limitation
 
