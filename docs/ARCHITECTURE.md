@@ -4,7 +4,9 @@
 
 ```mermaid
 flowchart TD
-  A[CLI or Studio] --> B[Application SDK]
+  A[CLI] --> B[Application SDK]
+  H[React Studio] --> I[Loopback API]
+  I --> B
   B --> C[Runner and provider]
   C --> D[Evaluators]
   D --> E[Risk scoring]
@@ -14,22 +16,24 @@ flowchart TD
 
 ## Package boundaries
 
-| Package         | Responsibility                                                        |
-| --------------- | --------------------------------------------------------------------- |
-| `apps/cli`      | Commands, stable exit codes and terminal/file presentation            |
-| `sdk`           | Shared validate, plan, run, compare and baseline application facade   |
-| `api-contracts` | Strict versioned Studio request, response, problem and event schemas  |
-| `core`          | Domain contracts, filtering, concurrency, retry and run orchestration |
-| `config`        | Versioned JSON/YAML and Studio project-manifest validation            |
-| `providers`     | Mock, OpenAI and Gemini adapters with injectable HTTP transport       |
-| `evaluators`    | Deterministic checks, JSON Schema and LLM-as-a-Judge                  |
-| `scoring`       | Case aggregation, severity rules and quality gates                    |
-| `artifacts`     | Atomic run and explicitly promoted baseline persistence               |
-| `reporters`     | Terminal, JSON, human-review and self-contained HTML output           |
+| Package           | Responsibility                                                        |
+| ----------------- | --------------------------------------------------------------------- |
+| `apps/cli`        | Commands, stable exit codes and terminal/file presentation            |
+| `apps/studio-api` | Loopback HTTP security, ID registries and redacted read endpoints     |
+| `apps/studio-web` | Typed React routes, accessible local evidence presentation            |
+| `sdk`             | Shared validate, plan, run, compare and baseline application facade   |
+| `api-contracts`   | Strict versioned Studio request, response, problem and event schemas  |
+| `core`            | Domain contracts, filtering, concurrency, retry and run orchestration |
+| `config`          | Versioned JSON/YAML and Studio project-manifest validation            |
+| `providers`       | Mock, OpenAI and Gemini adapters with injectable HTTP transport       |
+| `evaluators`      | Deterministic checks, JSON Schema and LLM-as-a-Judge                  |
+| `scoring`         | Case aggregation, severity rules and quality gates                    |
+| `artifacts`       | Atomic run and explicitly promoted baseline persistence               |
+| `reporters`       | Terminal, JSON, human-review and self-contained HTML output           |
 
 ## Trust boundaries
 
-Provider text, judge output, datasets and referenced schemas are untrusted input. Schema references cannot escape the suite directory, HTML is escaped, secrets are centrally redacted, and raw responses are omitted by default. An `ERROR` is operational uncertainty and is never converted to a quality `FAIL`. A baseline is never promoted automatically.
+Provider text, judge output, datasets and referenced schemas are untrusted input. Schema references cannot escape the suite directory, HTML is escaped, secrets are centrally redacted, and raw responses are omitted by default. Studio binds to loopback, accepts only allowlisted Host/Origin values, protects mutations with session plus CSRF tokens, and exposes opaque IDs instead of filesystem paths. Manifest references and artifact discovery are checked after symlink resolution. An `ERROR` is operational uncertainty and is never converted to a quality `FAIL`. A baseline is never promoted automatically.
 
 ## Reproducibility
 
