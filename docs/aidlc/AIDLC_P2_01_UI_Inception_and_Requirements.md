@@ -3,8 +3,9 @@
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **Product increment:** Local Evaluation Studio  
 > **AIDLC stage:** 1 — Inception & Requirements  
-> **Status:** REVIEW  
+> **Status:** APPROVED
 > **Date:** 2026-09-16  
+> **Approved:** 2026-09-16 by project owner
 > **Input baseline:** v0.1.0 CLI MVP and Sprint 0–5 execution evidence
 
 ## 1. Purpose
@@ -291,7 +292,7 @@ Full requirement-to-component-to-test traceability will be created in AIDLC Stag
 
 ## 18. Phase gate
 
-**Status:** `AWAITING APPROVAL`
+**Status:** `PASSED`
 
 Stage 2 — System Design may begin only after the project owner approves:
 
@@ -303,4 +304,4 @@ Stage 2 — System Design may begin only after the project owner approves:
 - Must/Should/Could boundaries; and
 - the acceptance criteria in this document.
 
-No UI implementation starts before this gate passes.
+The project owner approved this baseline on 2026-09-16. Stage 2 — System Design may begin. No UI implementation starts before Stage 2 and Stage 3 gates pass.
