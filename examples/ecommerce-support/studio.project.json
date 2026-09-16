@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0",
+  "id": "ecommerce-support",
+  "name": "E-commerce Support",
+  "targets": [
+    { "id": "mock", "config": "./llmeval.config.json" },
+    { "id": "openai", "config": "./llmeval.openai.config.json" },
+    { "id": "gemini", "config": "./llmeval.gemini.config.json" }
+  ],
+  "suites": [
+    {
+      "id": "main",
+      "file": "./suite.yaml",
+      "fixtureSets": [
+        { "id": "passing", "file": "./fixtures.json" },
+        { "id": "critical-regression", "file": "./fixtures-regression.json" }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "portfolio-pass",
+      "name": "Portfolio pass",
+      "targetId": "mock",
+      "suiteId": "main",
+      "fixtureSetId": "passing"
+    },
+    {
+      "id": "refund-regression",
+      "name": "Critical refund regression",
+      "targetId": "mock",
+      "suiteId": "main",
+      "fixtureSetId": "critical-regression",
+      "filters": { "caseIds": ["REFUND_001"] }
+    }
+  ]
+}

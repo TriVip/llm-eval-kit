@@ -1,11 +1,11 @@
 # Architecture
 
-`llm-eval-kit` is a CLI-first, file-based quality engineering framework. A run loads a versioned project configuration and evaluation suite, selects cases, calls one target provider, executes configured evaluators, applies risk-aware scoring, and writes immutable evidence.
+`llm-eval-kit` is a file-based quality engineering framework with a shared application SDK. The CLI and the Local Evaluation Studio use the same validate, plan, run, compare, and baseline-promotion path. A run loads a versioned project configuration and evaluation suite, selects cases, calls one target provider, executes configured evaluators, applies risk-aware scoring, and writes immutable evidence.
 
 ```mermaid
 flowchart TD
-  A[Config and suite] --> B[Runner]
-  B --> C[Target provider]
+  A[CLI or Studio] --> B[Application SDK]
+  B --> C[Runner and provider]
   C --> D[Evaluators]
   D --> E[Risk scoring]
   E --> F[JSON, HTML and review artifacts]
@@ -14,16 +14,18 @@ flowchart TD
 
 ## Package boundaries
 
-| Package      | Responsibility                                                        |
-| ------------ | --------------------------------------------------------------------- |
-| `apps/cli`   | Commands, stable exit codes and dependency composition                |
-| `core`       | Domain contracts, filtering, concurrency, retry and run orchestration |
-| `config`     | Versioned JSON/YAML validation                                        |
-| `providers`  | Mock, OpenAI and Gemini adapters with injectable HTTP transport       |
-| `evaluators` | Deterministic checks, JSON Schema and LLM-as-a-Judge                  |
-| `scoring`    | Case aggregation, severity rules and quality gates                    |
-| `artifacts`  | Atomic run and explicitly promoted baseline persistence               |
-| `reporters`  | Terminal, JSON, human-review and self-contained HTML output           |
+| Package         | Responsibility                                                        |
+| --------------- | --------------------------------------------------------------------- |
+| `apps/cli`      | Commands, stable exit codes and terminal/file presentation            |
+| `sdk`           | Shared validate, plan, run, compare and baseline application facade   |
+| `api-contracts` | Strict versioned Studio request, response, problem and event schemas  |
+| `core`          | Domain contracts, filtering, concurrency, retry and run orchestration |
+| `config`        | Versioned JSON/YAML and Studio project-manifest validation            |
+| `providers`     | Mock, OpenAI and Gemini adapters with injectable HTTP transport       |
+| `evaluators`    | Deterministic checks, JSON Schema and LLM-as-a-Judge                  |
+| `scoring`       | Case aggregation, severity rules and quality gates                    |
+| `artifacts`     | Atomic run and explicitly promoted baseline persistence               |
+| `reporters`     | Terminal, JSON, human-review and self-contained HTML output           |
 
 ## Trust boundaries
 
