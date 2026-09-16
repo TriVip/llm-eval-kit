@@ -90,13 +90,20 @@ export class ConcurrencyLimiter {
   public async run<T>(operation: () => Promise<T>): Promise<T> {
     if (this.active >= this.limit) {
       await new Promise<void>((resolve) => this.waiting.push(resolve));
+    } else {
+      this.active += 1;
     }
-    this.active += 1;
     try {
       return await operation();
     } finally {
-      this.active -= 1;
-      this.waiting.shift()?.();
+      const next = this.waiting.shift();
+      if (next === undefined) {
+        this.active -= 1;
+      } else {
+        // Keep the released slot reserved while ownership is handed directly
+        // to the next waiter. This closes the release/resume race window.
+        next();
+      }
     }
   }
 }
