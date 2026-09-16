@@ -3,8 +3,9 @@
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **Product increment:** Local Evaluation Studio  
 > **AIDLC stage:** 2 — System Design  
-> **Status:** REVIEW  
+> **Status:** APPROVED
 > **Date:** 2026-09-16  
+> **Approved:** 2026-09-16 by project owner
 > **Input:** Approved `AIDLC_P2_01_UI_Inception_and_Requirements.md`
 
 ## 1. Design objective
@@ -567,7 +568,7 @@ Every slice is demonstrable end-to-end and retains the existing CLI test suite.
 
 ## 22. Stage gate
 
-**Status:** `AWAITING APPROVAL`
+**Status:** `PASSED`
 
 Stage 3 — Backlog & Test Design may begin only after approval of:
 
@@ -580,4 +581,4 @@ Stage 3 — Backlog & Test Design may begin only after approval of:
 - frontend state, visual, accessibility, and performance architecture; and
 - backward-compatibility/migration strategy.
 
-No implementation begins before Stage 2 and Stage 3 pass.
+The project owner approved this design on 2026-09-16. Stage 3 — Backlog & Test Design may begin. No implementation begins before Stage 3 passes.

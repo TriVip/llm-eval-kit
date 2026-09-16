@@ -36,6 +36,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Phase 4 — Sprint 4 | Completed |
 | Phase 4 — Sprint 5 | Completed |
 | Product Phase 2 — UI Inception & Requirements | Approved |
-| Product Phase 2 — UI System Design | Awaiting approval |
+| Product Phase 2 — UI System Design | Approved |
 
 The planned Sprint 0–5 MVP backlog is complete. Version 0.1.0 is the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.

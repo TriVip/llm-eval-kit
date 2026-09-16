@@ -2,91 +2,91 @@
 
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **AIDLC stage:** 2 — System Design  
-> **Status:** PROPOSED  
+> **Status:** ACCEPTED
 > **Date:** 2026-09-16
 
 ## 1. Architecture Decision Records
 
 ### UI-ADR-001 — Shared application SDK
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Extract application use cases into `packages/sdk`; CLI and Studio API invoke the same facade.
 - **Why:** Prevent scoring/execution drift and make future PromptOps integration possible.
 - **Trade-off:** CLI composition must be refactored behind characterization tests.
 
 ### UI-ADR-002 — Loopback-only same-origin Studio
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Fastify binds to loopback and serves API plus compiled React assets from one origin; Vite proxies API in development.
 - **Why:** Reduces deployment/auth scope and enables strict browser security controls.
 - **Trade-off:** The increment is not a hosted collaboration product.
 
 ### UI-ADR-003 — React/Vite feature architecture
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** React + TypeScript + Vite, feature folders, React Router, TanStack Query, and feature-scoped live-run state.
 - **Why:** Typed, testable UI with a small amount of global state and clear future integration path.
 - **Trade-off:** Adds a browser build and frontend dependency surface to the monorepo.
 
 ### UI-ADR-004 — Explicit Studio project manifest
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** A versioned manifest relates config, suites, fixtures, and guided scenarios.
 - **Why:** Safe discovery is more reproducible than guessing files or accepting arbitrary browser paths.
 - **Trade-off:** Example/custom projects add one small metadata file.
 
 ### UI-ADR-005 — ID-based filesystem API
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Browser sends opaque registry IDs. Server resolves canonical paths inside startup allowlisted roots.
 - **Why:** Avoids arbitrary file read/write and path disclosure.
 - **Trade-off:** Files outside registered roots require a server restart with an explicit workspace option.
 
 ### UI-ADR-006 — SSE for progress
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Use Server-Sent Events with monotonic IDs, bounded replay, snapshot fallback, and safe payloads.
 - **Why:** Progress is server-to-client only; SSE is simpler and more inspectable than WebSockets.
 - **Trade-off:** Client commands still use HTTP and multi-directional streaming is not supported.
 
 ### UI-ADR-007 — Canonical artifacts remain authoritative
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** UI never recalculates final verdicts, metrics, or gates; it renders SDK artifacts.
 - **Why:** Preserves evidence consistency across CLI, HTML, JSON, CI, and Studio.
 - **Trade-off:** UI improvements sometimes require backward-compatible artifact additions.
 
 ### UI-ADR-008 — Server-only provider credentials
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** API keys are resolved from environment variables in the Node process. Browser receives readiness only.
 - **Why:** Browser storage and network payloads are inappropriate secret boundaries.
 - **Trade-off:** Users restart/reconfigure the local process to change credentials.
 
 ### UI-ADR-009 — One active Studio run by default
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** The local Studio registry allows one active run and rejects concurrent starts with `409`.
 - **Why:** Predictable resource usage, provider cost, progress, and demo behavior.
 - **Trade-off:** Advanced parallel experiments remain CLI/Phase 2 benchmarking scope.
 
 ### UI-ADR-010 — Cooperative cancellation with partial evidence
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Abort stops new scheduling, cancels supported in-flight calls, preserves completed evidence, and marks artifact operationally incomplete with optional termination metadata.
 - **Why:** Cancellation must not fabricate a quality result or discard completed work.
 - **Trade-off:** Artifact/session status remains intentionally more nuanced than one enum.
 
 ### UI-ADR-011 — Custom design tokens and accessible primitives
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** CSS Modules/design tokens create the visual identity; accessible unstyled primitives are used only for complex controls.
 - **Why:** Avoids a generic dashboard appearance without rebuilding dialog/focus behavior badly.
 - **Trade-off:** More deliberate styling work than adopting a complete component theme.
 
 ### UI-ADR-012 — No database or authentication
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Run history is rebuilt from filesystem artifacts; local Studio has no accounts or RBAC.
 - **Why:** Preserves the approved local-only scope and avoids premature SaaS architecture.
 - **Trade-off:** No multi-user collaboration, remote access, or database queries.
@@ -170,19 +170,19 @@ Forbidden direction:
 
 ## 6. Stage 2 review checklist
 
-- [ ] Shared SDK boundary accepted.
-- [ ] Studio project manifest accepted.
-- [ ] Loopback/same-origin HTTP security accepted.
-- [ ] API endpoints and error contract accepted.
-- [ ] SSE event contract and lifecycle accepted.
-- [ ] Cancellation/partial artifact semantics accepted.
-- [ ] Filesystem roots and ID registry accepted.
-- [ ] React state, routing, visual, and accessibility choices accepted.
-- [ ] All 20 UI-FR and 12 UI-NFR mapped.
-- [ ] No UI requirement requires auth, database, or hosted deployment.
+- [x] Shared SDK boundary accepted.
+- [x] Studio project manifest accepted.
+- [x] Loopback/same-origin HTTP security accepted.
+- [x] API endpoints and error contract accepted.
+- [x] SSE event contract and lifecycle accepted.
+- [x] Cancellation/partial artifact semantics accepted.
+- [x] Filesystem roots and ID registry accepted.
+- [x] React state, routing, visual, and accessibility choices accepted.
+- [x] All 20 UI-FR and 12 UI-NFR mapped.
+- [x] No UI requirement requires auth, database, or hosted deployment.
 
 ## 7. Stage gate
 
-**Status:** `AWAITING APPROVAL`
+**Status:** `PASSED`
 
-When approved, UI-ADR-001 through UI-ADR-012 become `Accepted`. Stage 3 may create epics, stories, implementation tasks, detailed test specifications, Definition of Ready/Done, and sprint sequencing. No implementation begins until Stage 3 also passes.
+UI-ADR-001 through UI-ADR-012 were accepted by the project owner on 2026-09-16. Stage 3 may create epics, stories, implementation tasks, detailed test specifications, Definition of Ready/Done, and sprint sequencing. No implementation begins until Stage 3 also passes.
