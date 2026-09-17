@@ -195,6 +195,7 @@ export type CaseResult = {
   definitionHash?: string;
   category: string;
   severity: Severity;
+  tags?: string[];
   verdict: Verdict;
   score?: number;
   confidence?: number;

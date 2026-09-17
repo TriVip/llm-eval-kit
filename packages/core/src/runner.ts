@@ -152,6 +152,7 @@ async function evaluateCase(
     definitionHash: hash(suiteCase),
     category: suiteCase.category,
     severity: suiteCase.severity,
+    tags: suiteCase.tags,
     verdict: aggregate.verdict,
     ...(aggregate.score === undefined ? {} : { score: aggregate.score }),
     ...(aggregate.confidence === undefined ? {} : { confidence: aggregate.confidence }),
@@ -169,6 +170,7 @@ function providerErrorCase(
     definitionHash: hash(suiteCase),
     category: suiteCase.category,
     severity: suiteCase.severity,
+    tags: suiteCase.tags,
     verdict: "ERROR",
     evaluations: [],
     errorCode,
@@ -208,6 +210,11 @@ export async function runEvaluationSuite(
     target: input.config.target,
   };
   const selectedSuite = filterEvaluationSuite(input.suite, input.filters);
+  await emitLog(dependencies.logEvent, {
+    runId,
+    phase: "run",
+    status: "started",
+  });
   const budget = input.config.execution.maxEstimatedCostUsd;
   let observedCostUsd = 0;
   const concurrency = Math.min(
@@ -219,6 +226,12 @@ export async function runEvaluationSuite(
     selectedSuite.cases,
     concurrency,
     async (suiteCase): Promise<CaseResult> => {
+      await emitLog(dependencies.logEvent, {
+        runId,
+        caseId: suiteCase.id,
+        phase: "run",
+        status: "started",
+      });
       try {
         const generation = await executeWithRetry(
           async (attempt, signal) => {
@@ -279,8 +292,21 @@ export async function runEvaluationSuite(
             (total, evaluation) => total + (evaluation.usage?.estimatedCostUsd ?? 0),
             0,
           );
+        await emitLog(dependencies.logEvent, {
+          runId,
+          caseId: suiteCase.id,
+          phase: "run",
+          status: "completed",
+        });
         return result;
       } catch (error) {
+        await emitLog(dependencies.logEvent, {
+          runId,
+          caseId: suiteCase.id,
+          phase: "run",
+          status: "failed",
+          errorCode: error instanceof FrameworkError ? error.code : "UNCLASSIFIED_PROVIDER_ERROR",
+        });
         return providerErrorCase(
           suiteCase,
           error instanceof FrameworkError ? error.code : "UNCLASSIFIED_PROVIDER_ERROR",
@@ -296,9 +322,11 @@ export async function runEvaluationSuite(
     return execution.results[index] ?? providerErrorCase(suiteCase, "INTERNAL_SCHEDULER_ERROR");
   });
 
-  return input.scoring.buildRunArtifact(
+  const artifact = input.scoring.buildRunArtifact(
     { ...metadata, completedAt: dependencies.now().toISOString() },
     cases,
     input.config.qualityGate,
   );
+  await emitLog(dependencies.logEvent, { runId, phase: "run", status: "completed" });
+  return artifact;
 }

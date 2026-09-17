@@ -148,9 +148,9 @@ Token prices are deliberately not hard-coded because provider pricing changes. A
 
 For semantic evaluation, configure a separate `judge` target and use `llm_judge`, as demonstrated by `llmeval.semantic.openai.config.json` and `suite-semantic.yaml`. Judge output is schema-validated. Low-confidence model judgments become warnings and are exported to `reports/<run-id>/human-review.json`.
 
-## Local Evaluation Studio preview
+## Local Evaluation Studio
 
-Sprint 7 adds a secure read-only Studio preview. It displays registered projects, provider readiness, guided scenarios, and schema-valid canonical artifacts. Starting evaluations from the browser is intentionally disabled until the controlled run lifecycle lands in Sprint 8.
+Sprint 8 adds a controlled mock-run workflow to the secure Studio. It displays registered projects and provider readiness, validates and plans allowlisted runs without provider calls, streams bounded redacted progress, and renders canonical result and case evidence. The browser never recalculates final verdicts.
 
 After `pnpm install`, use two terminals:
 
@@ -163,6 +163,8 @@ pnpm studio:web
 ```
 
 Open `http://127.0.0.1:4173`. The API binds only to `127.0.0.1:4317`; the browser receives opaque IDs and redacted evidence, never unrestricted filesystem paths or provider secrets.
+
+From the Overview, choose either the 64-case portfolio pass or the single-case critical refund regression. Review the authoritative plan, start the run, follow preliminary progress, then open the persisted canonical result. Run cancellation, comparison, baseline promotion, and human-review workflows remain planned for later UI sprints.
 
 Provider unit and contract tests use injected HTTP transports; the default CI never requires credentials or spends API budget.
 

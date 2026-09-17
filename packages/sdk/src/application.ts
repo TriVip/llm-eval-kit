@@ -112,7 +112,10 @@ export function createEvaluationApplication(
           scoring: new RiskScoringEngine(),
           ...(input.filters === undefined ? {} : { filters: input.filters }),
         },
-        { logEvent: async (event) => void (await control.onEvent?.(event)) },
+        {
+          logEvent: async (event) => void (await control.onEvent?.(event)),
+          ...(control.runId === undefined ? {} : { createRunId: () => control.runId! }),
+        },
       );
     },
     compare(input) {

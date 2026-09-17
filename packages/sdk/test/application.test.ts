@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { loadMockFixtureFile } from "@llm-eval-kit/providers";
+import type { ExecutionLogEvent } from "@llm-eval-kit/core";
 
 import { loadEvaluationSuite, loadProjectConfig } from "../../config/src/index.js";
 import { createEvaluationApplication } from "../src/index.js";
@@ -113,6 +114,35 @@ describe("evaluation application facade", () => {
     expect(passing.status).toBe("PASSED");
     expect(regression.status).toBe("QUALITY_FAILED");
     expect(regression.gateFailures.map(({ code }) => code)).toContain("CRITICAL_CASE_FAILURE");
+  });
+
+  it("emits ordered observational progress with the caller run ID and no model content", async () => {
+    const input = await resources();
+    const events: ExecutionLogEvent[] = [];
+    const artifact = await createEvaluationApplication().run(
+      { ...input, filters: { caseIds: ["REFUND_001"] } },
+      { runId: "studio-run-001", onEvent: (event) => events.push(event) },
+    );
+    expect(artifact.metadata.runId).toBe("studio-run-001");
+    expect(events[0]).toMatchObject({
+      runId: "studio-run-001",
+      phase: "run",
+      status: "started",
+    });
+    expect(events.at(-1)).toMatchObject({
+      runId: "studio-run-001",
+      phase: "run",
+      status: "completed",
+    });
+    expect(
+      events.some(
+        ({ caseId, phase, status }) =>
+          caseId === "REFUND_001" && phase === "run" && status === "completed",
+      ),
+    ).toBe(true);
+    const serialized = JSON.stringify(events);
+    expect(serialized).not.toContain(input.suite.cases[0]?.input.user);
+    expect(serialized).not.toContain("generation");
   });
 
   it("compares and explicitly promotes immutable artifacts", async () => {

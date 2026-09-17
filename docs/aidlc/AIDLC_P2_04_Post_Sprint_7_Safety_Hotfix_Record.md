@@ -2,10 +2,11 @@
 
 **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 **Execution date:** 2026-09-16  
-**Status:** COMPLETED; protected merge pending  
+**Status:** COMPLETED; protected merge passed
 **Branch:** `fix/post-sprint7-safety`  
 **Remote implementation commit:** `e4693791ce62c4ea523a31720c91e6faa947d1de`  
 **Pull request:** [#10 — Redact reports and close concurrency race](https://github.com/TriVip/llm-eval-kit/pull/10)
+**Merge commit:** `c01f0c0890969ca0be516d5b865b8840f240f342`
 
 ## 1. Trigger
 
@@ -42,4 +43,4 @@ The patches were treated as review input rather than applied blindly because the
 
 ## 4. Scope decision
 
-This is a corrective hotfix, not Sprint 8 scope. It changes no public CLI command, artifact schema, Studio API contract, scoring rule, or baseline behavior. Sprint 8 may start only after PR #10 passes protected CI and merges.
+This was a corrective hotfix, not Sprint 8 scope. It changed no public CLI command, artifact schema, Studio API contract, scoring rule, or baseline behavior. PR #10 passed protected CI and merged before Sprint 8 began.

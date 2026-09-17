@@ -38,6 +38,7 @@ export type ProviderFactoryInput = { target: ModelTarget; fixtures?: MockFixture
 export type ProviderFactory = (input: ProviderFactoryInput) => LlmProvider;
 export type ApplicationDependencies = { createProvider?: ProviderFactory };
 export type RunControl = {
+  runId?: string;
   onEvent?: (event: ExecutionLogEvent) => Promise<void> | void;
 };
 export interface EvaluationApplication {

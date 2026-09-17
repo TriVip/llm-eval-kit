@@ -4,10 +4,19 @@ import { resolve } from "node:path";
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 
-import { STUDIO_API_VERSION } from "@llm-eval-kit/api-contracts";
+import {
+  STUDIO_API_VERSION,
+  studioRunRequestSchema,
+  type SafeRunEvent,
+  type StudioRunRequest,
+} from "@llm-eval-kit/api-contracts";
+import { writeRunArtifact } from "@llm-eval-kit/artifacts";
+import { ConfigurationError } from "@llm-eval-kit/core";
+import { createEvaluationApplication } from "@llm-eval-kit/sdk";
 
 import { ArtifactIndex } from "./artifact-index.js";
 import { ProjectRegistry } from "./project-registry.js";
+import { RunRegistry } from "./run-registry.js";
 
 export type StudioServerOptions = {
   workspaceRoot: string;
@@ -32,16 +41,44 @@ function problem(
   code: string,
   title: string,
   detail: string,
+  fieldErrors?: Array<{ path: string; message: string }>,
 ) {
-  return reply.code(status).type("application/problem+json").send({
-    apiVersion: STUDIO_API_VERSION,
-    type: "about:blank",
-    title,
-    status,
-    code,
-    detail,
-    correlationId: request.id,
-  });
+  return reply
+    .code(status)
+    .type("application/problem+json")
+    .send({
+      apiVersion: STUDIO_API_VERSION,
+      type: "about:blank",
+      title,
+      status,
+      code,
+      detail,
+      correlationId: request.id,
+      ...(fieldErrors === undefined ? {} : { fieldErrors }),
+    });
+}
+
+function parseRunRequest(
+  input: unknown,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): StudioRunRequest | undefined {
+  const parsed = studioRunRequestSchema.safeParse(input);
+  if (parsed.success) return parsed.data;
+  void problem(
+    reply,
+    request,
+    400,
+    "INVALID_RUN_REQUEST",
+    "Invalid run request",
+    "Review the selected project resources and filters.",
+    parsed.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+  );
+  return undefined;
+}
+
+function encodeSse(event: SafeRunEvent): string {
+  return `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
 }
 
 export async function buildStudioServer(options: StudioServerOptions): Promise<FastifyInstance> {
@@ -60,7 +97,9 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
     ],
     ...(options.environment === undefined ? {} : { environment: options.environment }),
   });
-  const artifacts = await ArtifactIndex.create(options.reportRoot);
+  let artifacts = await ArtifactIndex.create(options.reportRoot);
+  const runs = new RunRegistry();
+  const application = createEvaluationApplication();
   const server = Fastify({
     bodyLimit: 256 * 1024,
     requestIdHeader: false,
@@ -140,7 +179,7 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
     return {
       apiVersion: STUDIO_API_VERSION,
       csrfToken,
-      capabilities: { readArtifacts: true as const, runEvaluations: false },
+      capabilities: { readArtifacts: true as const, runEvaluations: true },
       projects: projects.map((project) => ({
         id: project.id,
         name: project.name,
@@ -168,6 +207,193 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
         project ??
         problem(reply, request, 404, "PROJECT_NOT_FOUND", "Not found", "Project was not found.")
       );
+    },
+  );
+  server.post<{ Params: { projectId: string }; Body: unknown }>(
+    "/api/v1/projects/:projectId/validate",
+    async (request, reply) => {
+      const input = parseRunRequest(request.body, request, reply);
+      if (input === undefined) return reply;
+      if (input.projectId !== request.params.projectId) {
+        return problem(
+          reply,
+          request,
+          400,
+          "PROJECT_ID_MISMATCH",
+          "Invalid project",
+          "Path and request project IDs must match.",
+        );
+      }
+      try {
+        const resolved = registry.resolve(input);
+        return {
+          apiVersion: STUDIO_API_VERSION,
+          valid: true as const,
+          ...application.validate(resolved.config, resolved.suite),
+        };
+      } catch (error) {
+        return problem(
+          reply,
+          request,
+          400,
+          "RUN_VALIDATION_FAILED",
+          "Validation failed",
+          error instanceof ConfigurationError ? error.safeMessage : "The run selection is invalid.",
+        );
+      }
+    },
+  );
+  server.post<{ Body: unknown }>("/api/v1/runs/plan", async (request, reply) => {
+    const input = parseRunRequest(request.body, request, reply);
+    if (input === undefined) return reply;
+    try {
+      const resolved = registry.resolve(input);
+      return {
+        apiVersion: STUDIO_API_VERSION,
+        ...application.plan(resolved.config, resolved.suite, resolved.filters),
+      };
+    } catch (error) {
+      return problem(
+        reply,
+        request,
+        400,
+        "RUN_PLAN_FAILED",
+        "Run plan failed",
+        error instanceof ConfigurationError ? error.safeMessage : "The run could not be planned.",
+      );
+    }
+  });
+  server.post<{ Body: unknown }>("/api/v1/runs", async (request, reply) => {
+    const input = parseRunRequest(request.body, request, reply);
+    if (input === undefined) return reply;
+    let resolved;
+    try {
+      resolved = registry.resolve(input);
+      application.validate(resolved.config, resolved.suite);
+    } catch (error) {
+      return problem(
+        reply,
+        request,
+        400,
+        "RUN_VALIDATION_FAILED",
+        "Validation failed",
+        error instanceof ConfigurationError ? error.safeMessage : "The run selection is invalid.",
+      );
+    }
+    const plan = application.plan(resolved.config, resolved.suite, resolved.filters);
+    const runId = `studio_${randomUUID()}`;
+    try {
+      runs.create(runId, input, plan.selectedCases);
+    } catch {
+      return problem(
+        reply,
+        request,
+        409,
+        "RUN_ALREADY_ACTIVE",
+        "Run already active",
+        "Wait for the active local run to finish.",
+      );
+    }
+    runs.validating(runId);
+    runs.validated(runId);
+    void application
+      .run(
+        {
+          config: resolved.config,
+          suite: resolved.suite,
+          schemaRoot: resolved.schemaRoot,
+          ...(resolved.filters === undefined ? {} : { filters: resolved.filters }),
+          ...(resolved.targetFixtures === undefined
+            ? {}
+            : { targetFixtures: resolved.targetFixtures }),
+        },
+        { runId, onEvent: (event) => runs.observe(runId, event) },
+      )
+      .then(async (artifact) => {
+        await writeRunArtifact(artifact, options.reportRoot);
+        artifacts = await ArtifactIndex.create(options.reportRoot);
+        const artifactId = artifacts.list().find(({ runId: id }) => id === runId)?.id;
+        if (artifactId === undefined) throw new Error("ARTIFACT_INDEX_FAILED");
+        runs.complete(runId, artifact, artifactId);
+      })
+      .catch(() => runs.fail(runId));
+    return reply
+      .code(202)
+      .send({ apiVersion: STUDIO_API_VERSION, runId, status: "ACCEPTED" as const });
+  });
+  server.get<{ Params: { runId: string } }>("/api/v1/runs/:runId", async (request, reply) => {
+    const snapshot = runs.get(request.params.runId);
+    return (
+      snapshot ??
+      problem(
+        reply,
+        request,
+        404,
+        "RUN_NOT_FOUND",
+        "Run not found",
+        "The run session does not exist.",
+      )
+    );
+  });
+  server.get<{ Params: { runId: string } }>(
+    "/api/v1/runs/:runId/events",
+    async (request, reply) => {
+      const lastHeader = request.headers["last-event-id"];
+      const afterId =
+        typeof lastHeader === "string" && /^\d+$/.test(lastHeader) ? Number(lastHeader) : 0;
+      const replay = runs.replay(request.params.runId, afterId);
+      if (replay === undefined) {
+        return problem(
+          reply,
+          request,
+          404,
+          "RUN_NOT_FOUND",
+          "Run not found",
+          "The run session does not exist.",
+        );
+      }
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+      if (replay.gap) {
+        const snapshot = runs.get(request.params.runId)!;
+        const event: SafeRunEvent = {
+          apiVersion: STUDIO_API_VERSION,
+          id: replay.events[0]?.id ?? afterId + 1,
+          runId: request.params.runId,
+          timestamp: new Date().toISOString(),
+          type: "snapshot.required",
+          progress: {
+            selected: snapshot.selectedCases,
+            running: 0,
+            completed: snapshot.completedCases,
+            passed: 0,
+            failed: 0,
+            warning: 0,
+            errors: 0,
+          },
+        };
+        reply.raw.write(encodeSse(event));
+      } else {
+        replay.events.forEach((event) => reply.raw.write(encodeSse(event)));
+      }
+      if (runs.isTerminal(request.params.runId)) {
+        reply.raw.end();
+        return reply;
+      }
+      const unsubscribe = runs.subscribe(request.params.runId, (event) => {
+        reply.raw.write(encodeSse(event));
+        if (["run.completed", "run.failed"].includes(event.type)) {
+          unsubscribe?.();
+          reply.raw.end();
+        }
+      });
+      request.raw.once("close", () => unsubscribe?.());
+      reply.hijack();
+      return reply;
     },
   );
   server.get("/api/v1/artifacts", async () => artifacts.list());

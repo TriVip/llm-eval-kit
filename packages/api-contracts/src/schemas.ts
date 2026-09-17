@@ -56,6 +56,42 @@ export const runAcceptedResponseSchema = z
   })
   .strict();
 
+export const validationResponseSchema = z
+  .object({
+    apiVersion: z.literal(STUDIO_API_VERSION),
+    valid: z.literal(true),
+    projectId: identifier,
+    suiteId: identifier,
+    caseCount: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const runSessionSnapshotSchema = z
+  .object({
+    apiVersion: z.literal(STUDIO_API_VERSION),
+    runId: identifier,
+    state: z.enum([
+      "CREATED",
+      "VALIDATING",
+      "READY",
+      "REJECTED",
+      "RUNNING",
+      "COMPLETED",
+      "QUALITY_FAILED",
+      "OPERATIONAL_FAILED",
+      "INTERNAL_FAILED",
+    ]),
+    projectId: identifier,
+    suiteId: identifier,
+    selectedCases: z.number().int().nonnegative(),
+    completedCases: z.number().int().nonnegative(),
+    startedAt: z.string().datetime().optional(),
+    completedAt: z.string().datetime().optional(),
+    artifactId: identifier.optional(),
+    safeMessage: z.string().optional(),
+  })
+  .strict();
+
 export const studioProblemSchema = z
   .object({
     apiVersion: z.literal(STUDIO_API_VERSION),
@@ -74,14 +110,33 @@ export const studioProblemSchema = z
 export const safeRunEventSchema = z
   .object({
     apiVersion: z.literal(STUDIO_API_VERSION),
-    sequence: z.number().int().nonnegative(),
+    id: z.number().int().positive(),
     runId: identifier,
-    phase: z.enum(["provider", "evaluator", "run"]),
-    status: z.enum(["started", "completed", "failed"]),
+    timestamp: z.string().datetime(),
+    type: z.enum([
+      "run.created",
+      "run.validated",
+      "run.started",
+      "case.started",
+      "case.completed",
+      "artifact.written",
+      "run.completed",
+      "run.failed",
+      "snapshot.required",
+    ]),
+    progress: z
+      .object({
+        selected: z.number().int().nonnegative(),
+        running: z.number().int().nonnegative(),
+        completed: z.number().int().nonnegative(),
+        passed: z.number().int().nonnegative(),
+        failed: z.number().int().nonnegative(),
+        warning: z.number().int().nonnegative(),
+        errors: z.number().int().nonnegative(),
+      })
+      .strict(),
     caseId: identifier.optional(),
-    evaluatorId: identifier.optional(),
-    durationMs: z.number().nonnegative().optional(),
-    errorCode: identifier.optional(),
+    safeMessage: z.string().optional(),
   })
   .strict();
 
@@ -127,6 +182,7 @@ export const projectDetailSchema = z
           targetId: identifier,
           suiteId: identifier,
           fixtureSetId: identifier.optional(),
+          filters: filtersSchema.optional(),
         })
         .strict(),
     ),
@@ -163,6 +219,8 @@ export const studioBootstrapResponseSchema = z
 export type StudioRunRequest = z.infer<typeof studioRunRequestSchema>;
 export type RunPlanResponse = z.infer<typeof runPlanResponseSchema>;
 export type RunAcceptedResponse = z.infer<typeof runAcceptedResponseSchema>;
+export type ValidationResponse = z.infer<typeof validationResponseSchema>;
+export type RunSessionSnapshot = z.infer<typeof runSessionSnapshotSchema>;
 export type StudioProblem = z.infer<typeof studioProblemSchema>;
 export type SafeRunEvent = z.infer<typeof safeRunEventSchema>;
 export type StudioBootstrapResponse = z.infer<typeof studioBootstrapResponseSchema>;

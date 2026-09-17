@@ -1,7 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
-import { ArtifactPage, ArtifactsPage, NotFoundPage, OverviewPage } from "./pages.js";
+import {
+  ArtifactPage,
+  ArtifactsPage,
+  CasePage,
+  LiveRunPage,
+  NewRunPage,
+  NotFoundPage,
+  OverviewPage,
+} from "./pages.js";
 import { AppShell } from "./shell.js";
 
 export const router = createBrowserRouter([
@@ -11,8 +19,11 @@ export const router = createBrowserRouter([
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <OverviewPage /> },
+      { path: "runs/new", element: <NewRunPage /> },
+      { path: "runs/:runId", element: <LiveRunPage /> },
       { path: "artifacts", element: <ArtifactsPage /> },
       { path: "artifacts/:artifactId", element: <ArtifactPage /> },
+      { path: "artifacts/:artifactId/cases/:caseId", element: <CasePage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

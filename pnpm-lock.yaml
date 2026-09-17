@@ -62,12 +62,21 @@ importers:
       '@llm-eval-kit/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
+      '@llm-eval-kit/artifacts':
+        specifier: workspace:*
+        version: link:../../packages/artifacts
       '@llm-eval-kit/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@llm-eval-kit/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@llm-eval-kit/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@llm-eval-kit/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       fastify:
         specifier: ^5.6.2
         version: 5.12.4
