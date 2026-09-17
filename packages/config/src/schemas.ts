@@ -291,6 +291,7 @@ export const runArtifactSchema = z
           definitionHash: z.string().min(1).optional(),
           category: identifierSchema,
           severity: severitySchema,
+          tags: z.array(identifierSchema).optional(),
           verdict: verdictSchema,
           score: probabilitySchema.optional(),
           confidence: probabilitySchema.optional(),

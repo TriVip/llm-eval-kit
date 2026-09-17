@@ -14,8 +14,11 @@
   },
   "dependencies": {
     "@llm-eval-kit/api-contracts": "workspace:*",
+    "@llm-eval-kit/artifacts": "workspace:*",
     "@llm-eval-kit/config": "workspace:*",
     "@llm-eval-kit/core": "workspace:*",
+    "@llm-eval-kit/providers": "workspace:*",
+    "@llm-eval-kit/sdk": "workspace:*",
     "fastify": "^5.6.2"
   },
   "scripts": {

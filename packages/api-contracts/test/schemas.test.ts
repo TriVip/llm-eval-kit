@@ -44,10 +44,19 @@ describe("Studio API contracts", () => {
     expect(
       safeRunEventSchema.safeParse({
         apiVersion: "1.0",
-        sequence: 1,
+        id: 1,
         runId: "run-1",
-        phase: "provider",
-        status: "completed",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        type: "case.completed",
+        progress: {
+          selected: 1,
+          running: 0,
+          completed: 1,
+          passed: 1,
+          failed: 0,
+          warning: 0,
+          errors: 0,
+        },
         rawResponse: "secret",
       }).success,
     ).toBe(false);
