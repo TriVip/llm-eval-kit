@@ -4,11 +4,13 @@
 
 **Execution date:** 2026-09-17
 
-**Status:** COMPLETED LOCALLY; protected PR pending
+**Status:** COMPLETED; protected CI passed, merge pending
 
 **Branch:** `ui-sprint8`
 
 **Scope:** UI-T018–UI-T027
+
+**Pull request:** [#11 — Add controlled mock run workflow](https://github.com/TriVip/llm-eval-kit/pull/11)
 
 ## 1. Sprint outcome
 
@@ -71,7 +73,7 @@ The Vite production bundle is 464.08 kB JavaScript (142.35 kB gzip) and 9.89 kB 
 
 ## 5. AIDLC gate assessment
 
-Sprint 8 Definition of Done is satisfied for UI-T018–UI-T027. The implementation has contract, integration, security, parity, performance, and automated accessibility evidence. The protected remote CI result is still required before merge.
+Sprint 8 Definition of Done is satisfied for UI-T018–UI-T027. The implementation has contract, integration, security, parity, performance, and automated accessibility evidence. GitHub Actions CI run #35 passed on the implementation commit; branch protection still requires the current PR head to pass before merge.
 
 Manual current-Chromium/Firefox keyboard and focus journeys remain release-level gates and are not represented as automated passes here. Cancellation, compare/baseline promotion, and human-review workflows remain intentionally assigned to Sprint 9; production packaging remains assigned to Sprint 10.
 
