@@ -4,7 +4,7 @@
 
 **Execution date:** 2026-09-17
 
-**Status:** COMPLETED; protected CI passed, merge pending
+**Status:** COMPLETED; protected PR #11 merged
 
 **Branch:** `ui-sprint8`
 
@@ -79,4 +79,4 @@ Manual current-Chromium/Firefox keyboard and focus journeys remain release-level
 
 ## 6. Next authorized scope
 
-After the protected Sprint 8 PR merges, Sprint 9 may begin with UI-T028–UI-T038: cancellation, comparison, explicit baseline promotion, and human-review workflows. No baseline may update implicitly.
+Protected PR #11 merged as `855292d`. Sprint 9 was authorized with UI-T028–UI-T037: cancellation, comparison, explicit baseline promotion, human-review, download, readiness, and recovery workflows. No baseline may update implicitly.

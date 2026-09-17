@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { safeRunEventSchema, studioProblemSchema, studioRunRequestSchema } from "../src/index.js";
+import {
+  runSessionSnapshotSchema,
+  safeRunEventSchema,
+  studioProblemSchema,
+  studioRunRequestSchema,
+} from "../src/index.js";
 
 describe("Studio API contracts", () => {
   it("accepts ID-based run requests with bounded overrides", () => {
@@ -60,5 +65,42 @@ describe("Studio API contracts", () => {
         rawResponse: "secret",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts the public cancellation lifecycle without exposing provider details", () => {
+    expect(
+      safeRunEventSchema.parse({
+        apiVersion: "1.0",
+        id: 2,
+        runId: "run-1",
+        timestamp: "2026-09-17T00:00:00.000Z",
+        type: "run.cancelling",
+        progress: {
+          selected: 20,
+          running: 1,
+          completed: 4,
+          passed: 4,
+          failed: 0,
+          warning: 0,
+          errors: 0,
+        },
+        safeMessage: "Cancellation requested. Completed evidence will be preserved.",
+      }).type,
+    ).toBe("run.cancelling");
+
+    expect(
+      runSessionSnapshotSchema.parse({
+        apiVersion: "1.0",
+        runId: "run-1",
+        state: "CANCELLED",
+        projectId: "ecommerce-support",
+        suiteId: "main",
+        selectedCases: 20,
+        completedCases: 4,
+        startedAt: "2026-09-17T00:00:00.000Z",
+        completedAt: "2026-09-17T00:00:01.000Z",
+        artifactId: "artifact-12345678",
+      }).state,
+    ).toBe("CANCELLED");
   });
 });

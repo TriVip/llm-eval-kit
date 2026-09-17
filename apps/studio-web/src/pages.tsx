@@ -5,16 +5,22 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import type { StudioRunRequest } from "@llm-eval-kit/api-contracts";
 
 import {
+  artifactDownloadUrl,
+  compareArtifacts,
   getArtifact,
   getArtifacts,
   getBootstrap,
   getProject,
+  getReviewItems,
   getRun,
+  cancelRun,
   planRun,
   startRun,
   subscribeToRun,
+  promoteBaseline,
   validateRun,
   type ArtifactCase,
+  StudioRequestError,
 } from "./api.js";
 import { EmptyState, Eyebrow, LoadingState, Panel, StatusBadge } from "./components.js";
 
@@ -232,10 +238,39 @@ export function ArtifactPage() {
   const [category, setCategory] = useState("ALL");
   const [severity, setSeverity] = useState("ALL");
   const [evaluator, setEvaluator] = useState("ALL");
+  const [confirmed, setConfirmed] = useState(false);
+  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
+  const [currentHash, setCurrentHash] = useState<string>();
+  const bootstrap = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
   const query = useQuery({
     queryKey: ["artifact", artifactId],
     queryFn: () => getArtifact(artifactId),
     retry: false,
+  });
+  const promote = useMutation({
+    mutationFn: async (overwrite: boolean) => {
+      const summary = query.data?.summary;
+      const projectId = summary?.projectId ?? bootstrap.data?.projects[0]?.id;
+      if (projectId === undefined || summary?.suiteId === undefined || bootstrap.data === undefined)
+        throw new Error("Baseline target is unavailable.");
+      return promoteBaseline(
+        {
+          artifactId,
+          projectId,
+          suiteId: summary.suiteId,
+          ...(overwrite && currentHash !== undefined
+            ? { overwrite: true, expectedCurrentHash: currentHash }
+            : {}),
+        },
+        bootstrap.data.csrfToken,
+      );
+    },
+    onError: (error) => {
+      if (error instanceof StudioRequestError && error.problem.code === "BASELINE_EXISTS") {
+        const hash = error.problem.currentHash;
+        if (typeof hash === "string") setCurrentHash(hash);
+      }
+    },
   });
   if (query.isPending) return <LoadingState />;
   if (query.isError) return <NotFoundPage title="Artifact not found" />;
@@ -283,6 +318,70 @@ export function ArtifactPage() {
           Canonical metrics are rendered without recalculation. Raw provider responses remain
           omitted.
         </p>
+      </Panel>
+      <Panel title="Canonical files">
+        <div className="action-row">
+          <a className="secondary-link" href={artifactDownloadUrl(artifactId, "run-json")}>
+            Download run.json
+          </a>
+          <a className="secondary-link" href={artifactDownloadUrl(artifactId, "human-review")}>
+            Download review queue
+          </a>
+          {query.data.files?.includes("html-report") === true && (
+            <a className="secondary-link" href={artifactDownloadUrl(artifactId, "html-report")}>
+              Open HTML report
+            </a>
+          )}
+          {query.data.files?.includes("redacted-logs") === true && (
+            <a className="secondary-link" href={artifactDownloadUrl(artifactId, "redacted-logs")}>
+              Download redacted logs
+            </a>
+          )}
+        </div>
+      </Panel>
+      <Panel title="Explicit baseline promotion">
+        <p className="prose">
+          Promote only after reviewing this {summary.status} artifact. This action never runs
+          automatically.
+        </p>
+        <label className="confirmation">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(event) => setConfirmed(event.target.checked)}
+          />
+          I reviewed the run status and quality-gate evidence.
+        </label>
+        {currentHash !== undefined && (
+          <div className="conflict" role="alert">
+            <strong>Baseline already exists.</strong>
+            <span className="mono">Current hash: {currentHash}</span>
+            <label className="confirmation">
+              <input
+                type="checkbox"
+                checked={overwriteConfirmed}
+                onChange={(event) => setOverwriteConfirmed(event.target.checked)}
+              />
+              Replace this exact baseline after a second review.
+            </label>
+          </div>
+        )}
+        <button
+          type="button"
+          className={currentHash === undefined ? "primary-button" : "danger-button"}
+          disabled={
+            !confirmed || promote.isPending || (currentHash !== undefined && !overwriteConfirmed)
+          }
+          onClick={() => promote.mutate(currentHash !== undefined)}
+        >
+          {currentHash === undefined ? "Promote baseline" : "Confirm overwrite"}
+        </button>
+        {promote.isSuccess && <p role="status">Baseline promoted and hash-verified.</p>}
+        {promote.isError && currentHash === undefined && (
+          <p className="form-error" role="alert">
+            {promote.error.message}
+          </p>
+        )}
       </Panel>
       {artifact.gateFailures.length > 0 && (
         <Panel title="Quality gate failures">
@@ -345,6 +444,197 @@ export function ArtifactPage() {
         </div>
         <CaseTable artifactId={artifactId} cases={cases} />
       </Panel>
+    </div>
+  );
+}
+
+export function ComparePage() {
+  const artifacts = useQuery({ queryKey: ["artifacts"], queryFn: getArtifacts });
+  const bootstrap = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
+  const [baselineId, setBaselineId] = useState("");
+  const [candidateId, setCandidateId] = useState("");
+  const comparison = useMutation({
+    mutationFn: async () => {
+      if (bootstrap.data === undefined) throw new Error("Session is not ready.");
+      return compareArtifacts(candidateId, baselineId, bootstrap.data.csrfToken);
+    },
+  });
+  if (artifacts.isPending || bootstrap.isPending) return <LoadingState />;
+  if (artifacts.isError || bootstrap.isError)
+    return <EmptyState title="Comparison unavailable">Reload the local Studio.</EmptyState>;
+  return (
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <Eyebrow>REGRESSION CONTROL</Eyebrow>
+          <h1>Compare evidence</h1>
+          <p>All classifications and deltas come from the canonical SDK comparison engine.</p>
+        </div>
+      </header>
+      {artifacts.data.length < 2 ? (
+        <EmptyState title="Two artifacts required">
+          Run the passing and regression scenarios first.
+        </EmptyState>
+      ) : (
+        <Panel title="Candidate and baseline">
+          <div className="comparison-form">
+            <label>
+              Baseline
+              <select value={baselineId} onChange={(event) => setBaselineId(event.target.value)}>
+                <option value="">Select baseline</option>
+                {artifacts.data.map((item) => (
+                  <option value={item.id} key={item.id}>
+                    {item.runId} · {item.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Candidate
+              <select value={candidateId} onChange={(event) => setCandidateId(event.target.value)}>
+                <option value="">Select candidate</option>
+                {artifacts.data.map((item) => (
+                  <option value={item.id} key={item.id}>
+                    {item.runId} · {item.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="primary-button"
+              type="button"
+              disabled={baselineId === "" || candidateId === "" || comparison.isPending}
+              onClick={() => comparison.mutate()}
+            >
+              Compare artifacts
+            </button>
+          </div>
+        </Panel>
+      )}
+      {comparison.isError && (
+        <p className="form-error" role="alert">
+          {comparison.error.message}
+        </p>
+      )}
+      {comparison.data !== undefined && (
+        <ComparisonResult comparison={comparison.data.comparison} />
+      )}
+    </div>
+  );
+}
+
+function ComparisonResult({
+  comparison,
+}: {
+  comparison: Awaited<ReturnType<typeof compareArtifacts>>["comparison"];
+}) {
+  return (
+    <>
+      <section className="metric-grid" aria-label="Comparison summary">
+        <div>
+          <span>Status</span>
+          <strong>{comparison.status}</strong>
+        </div>
+        <div>
+          <span>Pass-rate delta</span>
+          <strong>{(comparison.overallPassRate.delta * 100).toFixed(1)} pp</strong>
+        </div>
+        <div>
+          <span>Critical regressions</span>
+          <strong>{comparison.criticalRegressionCaseIds.length}</strong>
+        </div>
+      </section>
+      <Panel title="Case classification">
+        <div className="classification-grid">
+          {Object.entries(comparison.classification).map(([label, ids]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <strong>{ids.length}</strong>
+              <small>{ids.join(", ") || "None"}</small>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      <Panel title="Category deltas">
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Baseline</th>
+                <th>Candidate</th>
+                <th>Delta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.categories.map((item) => (
+                <tr key={item.category}>
+                  <td>{item.category}</td>
+                  <td>{percent(item.passRate.baseline)}</td>
+                  <td>{percent(item.passRate.candidate)}</td>
+                  <td>{(item.passRate.delta * 100).toFixed(1)} pp</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+      {comparison.gateFailures.length > 0 && (
+        <Panel title="Regression gate failures">
+          <div className="gate-list">
+            {comparison.gateFailures.map((failure) => (
+              <div className="gate" key={failure.code}>
+                <strong>{failure.code}</strong>
+                <span>{failure.reason}</span>
+                <small>{failure.affectedCaseIds.join(", ")}</small>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+    </>
+  );
+}
+
+export function ReviewPage() {
+  const review = useQuery({ queryKey: ["review-items"], queryFn: getReviewItems });
+  return (
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <Eyebrow>HUMAN IN THE LOOP</Eyebrow>
+          <h1>Review queue</h1>
+          <p>Low-confidence model-based warnings that require human judgment.</p>
+        </div>
+      </header>
+      {review.isPending ? (
+        <LoadingState />
+      ) : review.isError ? (
+        <EmptyState title="Review queue unavailable">Retry after the API recovers.</EmptyState>
+      ) : review.data.length === 0 ? (
+        <EmptyState title="No review items">
+          No model-based warning currently needs review.
+        </EmptyState>
+      ) : (
+        <Panel title={`${review.data.length} items require review`}>
+          <div className="review-list">
+            {review.data.map((item) => (
+              <article className="evaluation" key={`${item.artifactId}:${item.caseId}`}>
+                <header>
+                  <Link to={`/artifacts/${item.artifactId}/cases/${item.caseId}`}>
+                    {item.caseId}
+                  </Link>
+                  <span>{item.severity}</span>
+                </header>
+                <p>{item.reasons.join(" ")}</p>
+                <small>
+                  Confidence: {item.confidence?.toFixed(3) ?? "Unavailable"} · {item.category}
+                </small>
+              </article>
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }
@@ -572,6 +862,7 @@ export function NewRunPage() {
       </EmptyState>
     );
   const selectedSuite = project.data.suites.find(({ id }) => id === suiteId);
+  const selectedTarget = project.data.targets.find(({ id }) => id === targetId);
   return (
     <div className="page">
       <header className="page-header">
@@ -593,11 +884,17 @@ export function NewRunPage() {
           >
             {project.data.targets.map((target) => (
               <option key={target.id} value={target.id}>
-                {target.id} · {target.model}
+                {target.id} · {target.model} · {target.ready ? "Ready" : "Not configured"}
               </option>
             ))}
           </select>
         </label>
+        {selectedTarget?.ready === false && (
+          <div className="form-error" role="alert">
+            This provider is not configured on the server. Add its environment credential and
+            restart Studio; credentials are never entered in the browser.
+          </div>
+        )}
         <label>
           Suite
           <select
@@ -723,13 +1020,13 @@ export function NewRunPage() {
           </div>
         )}
         <div className="form-actions">
-          <button type="submit" disabled={planMutation.isPending}>
+          <button type="submit" disabled={planMutation.isPending || selectedTarget?.ready !== true}>
             Validate & plan
           </button>
           <button
             type="button"
             className="primary"
-            disabled={plan === undefined || runMutation.isPending}
+            disabled={plan === undefined || runMutation.isPending || selectedTarget?.ready !== true}
             onClick={() => runMutation.mutate()}
           >
             Start evaluation
@@ -762,30 +1059,51 @@ export function LiveRunPage() {
   const { runId = "" } = useParams();
   const queryClient = useQueryClient();
   const [progress, setProgress] = useState({ selected: 0, running: 0, completed: 0 });
+  const [connection, setConnection] = useState<"CONNECTED" | "DISCONNECTED">("CONNECTED");
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const run = useQuery({
     queryKey: ["run", runId],
     queryFn: () => getRun(runId),
     refetchInterval: (query) => {
       const state = query.state.data?.state;
       return state !== undefined &&
-        ["COMPLETED", "QUALITY_FAILED", "OPERATIONAL_FAILED", "INTERNAL_FAILED"].includes(state)
+        [
+          "CANCELLED",
+          "COMPLETED",
+          "QUALITY_FAILED",
+          "OPERATIONAL_FAILED",
+          "INTERNAL_FAILED",
+        ].includes(state)
         ? false
         : 1000;
     },
     retry: false,
   });
+  const bootstrap = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const token = bootstrap.data?.csrfToken;
+      if (token === undefined) throw new Error("Session is not ready.");
+      return cancelRun(runId, token);
+    },
+    onSuccess: (snapshot) => queryClient.setQueryData(["run", runId], snapshot),
+  });
   useEffect(
     () =>
-      subscribeToRun(runId, (event) => {
-        setProgress({
-          selected: event.progress.selected,
-          running: event.progress.running,
-          completed: event.progress.completed,
-        });
-        if (["run.completed", "run.failed", "snapshot.required"].includes(event.type))
-          void queryClient.invalidateQueries({ queryKey: ["run", runId] });
-      }),
-    [queryClient, runId],
+      subscribeToRun(
+        runId,
+        (event) => {
+          setProgress({
+            selected: event.progress.selected,
+            running: event.progress.running,
+            completed: event.progress.completed,
+          });
+          if (["run.completed", "run.failed", "snapshot.required"].includes(event.type))
+            void queryClient.invalidateQueries({ queryKey: ["run", runId] });
+        },
+        setConnection,
+      ),
+    [connectionAttempt, queryClient, runId],
   );
   if (run.isPending) return <LoadingState label="Connecting to run" />;
   if (run.isError) return <NotFoundPage title="Run not found" />;
@@ -811,6 +1129,36 @@ export function LiveRunPage() {
           <span>{progress.running} running</span>
         </div>
       </Panel>
+      {connection === "DISCONNECTED" && (
+        <div className="form-error" role="alert">
+          Live updates are temporarily disconnected. The canonical run continues on the server.
+          <button
+            type="button"
+            onClick={() => {
+              setConnection("CONNECTED");
+              setConnectionAttempt((value) => value + 1);
+              void queryClient.invalidateQueries({ queryKey: ["run", runId] });
+            }}
+          >
+            Reconnect
+          </button>
+        </div>
+      )}
+      {["CREATED", "VALIDATING", "READY", "RUNNING"].includes(snapshot.state) && (
+        <button
+          type="button"
+          className="danger-button"
+          disabled={cancelMutation.isPending || bootstrap.isPending}
+          onClick={() => cancelMutation.mutate()}
+        >
+          Cancel run
+        </button>
+      )}
+      {snapshot.state === "CANCELLING" && (
+        <p className="prose" role="status">
+          Cancelling safely. Completed evidence will be preserved.
+        </p>
+      )}
       {snapshot.safeMessage !== undefined && (
         <div className="form-error" role="alert">
           {snapshot.safeMessage}

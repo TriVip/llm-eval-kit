@@ -528,6 +528,83 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
+.danger-button {
+  border-color: var(--fail);
+  background: #fff7f5;
+  color: var(--fail);
+}
+
+.action-row,
+.comparison-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+}
+.secondary-link {
+  display: inline-flex;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #ccd5cf;
+  border-radius: 5px;
+  font-weight: 700;
+}
+.confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+.confirmation input {
+  width: auto;
+  margin-top: 0.15rem;
+}
+.conflict {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border-left: 4px solid #a73535;
+  background: #fff3f1;
+}
+.conflict .mono {
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+.comparison-form label {
+  min-width: min(100%, 18rem);
+}
+.classification-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+.classification-grid > div {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 1rem;
+  background: #f6f8f6;
+}
+.classification-grid span {
+  text-transform: capitalize;
+}
+.classification-grid strong {
+  font-size: 1.5rem;
+}
+.classification-grid small {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.review-list {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 760px) {
+  .classification-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .primary,
 .primary-link {
   background: var(--accent);

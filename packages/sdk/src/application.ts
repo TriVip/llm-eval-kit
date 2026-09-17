@@ -111,6 +111,7 @@ export function createEvaluationApplication(
           evaluators: evaluatorRegistry(input, createProvider),
           scoring: new RiskScoringEngine(),
           ...(input.filters === undefined ? {} : { filters: input.filters }),
+          ...(control.signal === undefined ? {} : { signal: control.signal }),
         },
         {
           logEvent: async (event) => void (await control.onEvent?.(event)),

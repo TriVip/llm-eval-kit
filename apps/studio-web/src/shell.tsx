@@ -4,6 +4,8 @@ const navigation = [
   { to: "/", label: "Overview", end: true },
   { to: "/runs/new", label: "New run", end: false },
   { to: "/artifacts", label: "Artifacts", end: false },
+  { to: "/compare", label: "Compare", end: false },
+  { to: "/review", label: "Review", end: false },
 ];
 
 export function AppShell() {

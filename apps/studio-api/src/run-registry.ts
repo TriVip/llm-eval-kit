@@ -18,12 +18,20 @@ type Session = {
   startedCases: Set<string>;
   finishedCases: Set<string>;
   outcomes: { passed: number; failed: number; warning: number; errors: number };
+  controller: AbortController;
 };
 
 const maximumBufferedEvents = 256;
 
 function terminal(state: RunState): boolean {
-  return ["COMPLETED", "QUALITY_FAILED", "OPERATIONAL_FAILED", "INTERNAL_FAILED"].includes(state);
+  return [
+    "REJECTED",
+    "CANCELLED",
+    "COMPLETED",
+    "QUALITY_FAILED",
+    "OPERATIONAL_FAILED",
+    "INTERNAL_FAILED",
+  ].includes(state);
 }
 
 export class RunRegistry {
@@ -50,6 +58,7 @@ export class RunRegistry {
       startedCases: new Set(),
       finishedCases: new Set(),
       outcomes: { passed: 0, failed: 0, warning: 0, errors: 0 },
+      controller: new AbortController(),
     };
     this.sessions.set(runId, session);
     this.activeRunId = runId;
@@ -77,12 +86,32 @@ export class RunRegistry {
     this.emit(session, "run.validated");
   }
 
+  signal(runId: string): AbortSignal {
+    return this.required(runId).controller.signal;
+  }
+
+  cancel(runId: string): RunSessionSnapshot {
+    const session = this.required(runId);
+    if (terminal(session.snapshot.state) || session.snapshot.state === "CANCELLING") {
+      return session.snapshot;
+    }
+    const requestedAt = new Date().toISOString();
+    this.mark(runId, "CANCELLING", {
+      safeMessage: "Cancellation requested. Preserving completed evidence.",
+    });
+    this.emit(session, "run.cancelling", undefined, "Cancellation requested.");
+    session.controller.abort(requestedAt);
+    return session.snapshot;
+  }
+
   observe(runId: string, event: ExecutionLogEvent): void {
     const session = this.required(runId);
     if (event.phase !== "run") return;
     if (event.caseId === undefined) {
       if (event.status === "started") {
-        this.mark(runId, "RUNNING", { startedAt: new Date().toISOString() });
+        if (session.snapshot.state !== "CANCELLING") {
+          this.mark(runId, "RUNNING", { startedAt: new Date().toISOString() });
+        }
         this.emit(session, "run.started");
       }
       return;
@@ -100,11 +129,13 @@ export class RunRegistry {
 
   complete(runId: string, artifact: RunArtifact, artifactId: string): void {
     const state: RunState =
-      artifact.status === "PASSED"
-        ? "COMPLETED"
-        : artifact.status === "QUALITY_FAILED"
-          ? "QUALITY_FAILED"
-          : "OPERATIONAL_FAILED";
+      artifact.termination?.kind === "CANCELLED"
+        ? "CANCELLED"
+        : artifact.status === "PASSED"
+          ? "COMPLETED"
+          : artifact.status === "QUALITY_FAILED"
+            ? "QUALITY_FAILED"
+            : "OPERATIONAL_FAILED";
     const session = this.required(runId);
     session.outcomes = {
       passed: artifact.metrics.passedCases,
@@ -114,7 +145,7 @@ export class RunRegistry {
     };
     this.mark(runId, state, {
       completedAt: artifact.metadata.completedAt ?? new Date().toISOString(),
-      completedCases: artifact.metrics.selectedCases,
+      completedCases: artifact.termination?.completedCases ?? artifact.metrics.selectedCases,
       artifactId,
     });
     this.emit(session, "artifact.written");

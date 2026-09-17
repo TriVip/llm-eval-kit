@@ -31,6 +31,24 @@ describe("ProjectRegistry", () => {
     ).rejects.toThrow("Duplicate Studio project id");
   });
 
+  it("rejects an unconfigured real provider before execution", async () => {
+    const registry = await ProjectRegistry.create({
+      workspaceRoot: resolve("."),
+      manifestPaths: [resolve("examples/ecommerce-support/studio.project.json")],
+      environment: {},
+    });
+    expect(
+      registry.get("ecommerce-support")?.targets.find(({ id }) => id === "openai")?.ready,
+    ).toBe(false);
+    expect(() =>
+      registry.resolve({
+        projectId: "ecommerce-support",
+        targetId: "openai",
+        suiteId: "main",
+      }),
+    ).toThrow("not configured on the server");
+  });
+
   it("rejects a referenced symlink escaping the workspace root", async () => {
     const root = join(tmpdir(), `studio-root-${crypto.randomUUID()}`);
     const outside = join(tmpdir(), `outside-${crypto.randomUUID()}.json`);

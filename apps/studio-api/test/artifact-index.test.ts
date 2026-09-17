@@ -81,4 +81,50 @@ describe("ArtifactIndex", () => {
       "valid-run",
     ]);
   });
+
+  it("indexes model-based warning evidence for human review", async () => {
+    const root = join(tmpdir(), `studio-reports-${crypto.randomUUID()}`);
+    const run = artifact("review-run");
+    run.cases[0]!.verdict = "WARNING";
+    run.cases[0]!.confidence = 0.51;
+    run.cases[0]!.evaluations = [
+      {
+        evaluatorId: "judge",
+        kind: "MODEL_BASED",
+        verdict: "WARNING",
+        confidence: 0.51,
+        reason: "Human judgment is required.",
+        durationMs: 1,
+      },
+    ];
+    await mkdir(join(root, "review"), { recursive: true });
+    await writeFile(join(root, "review", "run.json"), JSON.stringify(run));
+    const index = await ArtifactIndex.create(root);
+    expect(index.reviewItems()).toEqual([
+      expect.objectContaining({
+        runId: "review-run",
+        caseId: "CASE_001",
+        verdict: "WARNING",
+        confidence: 0.51,
+      }),
+    ]);
+  });
+
+  it("resolves only bounded allowlisted companion files", async () => {
+    const root = join(tmpdir(), `studio-reports-${crypto.randomUUID()}`);
+    const runDirectory = join(root, "run");
+    await mkdir(runDirectory, { recursive: true });
+    await writeFile(join(runDirectory, "run.json"), JSON.stringify(artifact("file-run")));
+    await writeFile(join(runDirectory, "report.html"), "<p>redacted report</p>");
+    await writeFile(join(runDirectory, "logs.ndjson"), '{"event":"completed"}\n');
+    const index = await ArtifactIndex.create(root);
+    const artifactId = index.list()[0]!.id;
+    await expect(index.file(artifactId, "html-report")).resolves.toBe(
+      join(runDirectory, "report.html"),
+    );
+    await expect(index.file(artifactId, "redacted-logs")).resolves.toBe(
+      join(runDirectory, "logs.ndjson"),
+    );
+    await expect(index.file("artifact-missing", "html-report")).resolves.toBeUndefined();
+  });
 });

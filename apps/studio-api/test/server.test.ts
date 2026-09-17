@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -10,8 +10,11 @@ import { buildStudioServer } from "../src/index.js";
 
 const servers: Awaited<ReturnType<typeof buildStudioServer>>[] = [];
 
-async function server(environment: Readonly<Record<string, string | undefined>> = {}) {
-  const reportRoot = join(tmpdir(), `studio-api-${crypto.randomUUID()}`);
+async function server(
+  environment: Readonly<Record<string, string | undefined>> = {},
+  requestedReportRoot?: string,
+) {
+  const reportRoot = requestedReportRoot ?? join(tmpdir(), `studio-api-${crypto.randomUUID()}`);
   await mkdir(reportRoot, { recursive: true });
   const instance = await buildStudioServer({
     workspaceRoot: resolve("."),
@@ -307,6 +310,208 @@ describe("Studio API security and read endpoints", () => {
     expect(artifact.body).toContain("forbidden-return-window");
   });
 
+  it("compares registered artifacts, guards baseline overwrite, and serves allowlisted evidence", async () => {
+    const reportRoot = join(tmpdir(), `studio-api-files-${crypto.randomUUID()}`);
+    const instance = await server({}, reportRoot);
+    const bootstrap = await instance.inject({
+      method: "GET",
+      url: "/api/v1/bootstrap",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const mutationHeaders = {
+      host: "127.0.0.1:4317",
+      origin: "http://127.0.0.1:4317",
+      cookie: bootstrap.headers["set-cookie"]?.split(";")[0] ?? "",
+      "x-csrf-token": bootstrap.json().csrfToken as string,
+    };
+    const start = async (fixtureSetId: string) => {
+      const accepted = await instance.inject({
+        method: "POST",
+        url: "/api/v1/runs",
+        headers: mutationHeaders,
+        payload: {
+          projectId: "ecommerce-support",
+          targetId: "mock",
+          suiteId: "main",
+          fixtureSetId,
+          filters: { caseIds: ["REFUND_001"] },
+        },
+      });
+      const runId = accepted.json().runId as string;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const snapshot = (
+          await instance.inject({
+            method: "GET",
+            url: `/api/v1/runs/${runId}`,
+            headers: { host: "127.0.0.1:4317" },
+          })
+        ).json();
+        if (["COMPLETED", "QUALITY_FAILED", "OPERATIONAL_FAILED"].includes(snapshot.state)) return;
+        await new Promise((resolve) => setTimeout(resolve, 2));
+      }
+      throw new Error("Studio run did not complete in time.");
+    };
+    await start("passing");
+    await start("critical-regression");
+    const indexed = (
+      await instance.inject({
+        method: "GET",
+        url: "/api/v1/artifacts",
+        headers: { host: "127.0.0.1:4317" },
+      })
+    ).json() as Array<{ id: string; runId: string; status: string; suiteId: string }>;
+    const baseline = indexed.find(({ status }) => status === "PASSED")!;
+    const candidate = indexed.find(({ status }) => status === "QUALITY_FAILED")!;
+
+    const comparison = await instance.inject({
+      method: "POST",
+      url: "/api/v1/comparisons",
+      headers: mutationHeaders,
+      payload: { candidateArtifactId: candidate.id, baselineArtifactId: baseline.id },
+    });
+    expect(comparison.statusCode).toBe(200);
+    expect(comparison.json().comparison).toMatchObject({
+      status: "QUALITY_FAILED",
+      criticalRegressionCaseIds: ["REFUND_001"],
+    });
+    const invalidComparison = await instance.inject({
+      method: "POST",
+      url: "/api/v1/comparisons",
+      headers: mutationHeaders,
+      payload: {},
+    });
+    expect(invalidComparison.json().code).toBe("INVALID_COMPARISON_REQUEST");
+    const missingComparison = await instance.inject({
+      method: "POST",
+      url: "/api/v1/comparisons",
+      headers: mutationHeaders,
+      payload: { candidateArtifactId: "artifact-missing", baselineArtifactId: baseline.id },
+    });
+    expect(missingComparison.json().code).toBe("ARTIFACT_NOT_FOUND");
+
+    const promotion = {
+      artifactId: baseline.id,
+      projectId: "ecommerce-support",
+      suiteId: baseline.suiteId,
+    };
+    const invalidPromotion = await instance.inject({
+      method: "POST",
+      url: "/api/v1/baselines",
+      headers: mutationHeaders,
+      payload: {},
+    });
+    expect(invalidPromotion.json().code).toBe("INVALID_BASELINE_REQUEST");
+    const missingPromotion = await instance.inject({
+      method: "POST",
+      url: "/api/v1/baselines",
+      headers: mutationHeaders,
+      payload: { ...promotion, artifactId: "artifact-missing" },
+    });
+    expect(missingPromotion.json().code).toBe("BASELINE_TARGET_NOT_FOUND");
+    const promoted = await instance.inject({
+      method: "POST",
+      url: "/api/v1/baselines",
+      headers: mutationHeaders,
+      payload: promotion,
+    });
+    expect(promoted.json()).toMatchObject({ status: "PROMOTED", ...promotion });
+    const conflict = await instance.inject({
+      method: "POST",
+      url: "/api/v1/baselines",
+      headers: mutationHeaders,
+      payload: promotion,
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json()).toMatchObject({ code: "BASELINE_EXISTS" });
+    const stale = await instance.inject({
+      method: "POST",
+      url: "/api/v1/baselines",
+      headers: mutationHeaders,
+      payload: {
+        ...promotion,
+        overwrite: true,
+        expectedCurrentHash: "0".repeat(64),
+      },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json()).toMatchObject({ code: "BASELINE_CHANGED" });
+    const replaced = await instance.inject({
+      method: "POST",
+      url: "/api/v1/baselines",
+      headers: mutationHeaders,
+      payload: {
+        ...promotion,
+        overwrite: true,
+        expectedCurrentHash: conflict.json().currentHash,
+      },
+    });
+    expect(replaced.statusCode).toBe(200);
+    expect(replaced.json().baselineHash).toMatch(/^[a-f0-9]{64}$/);
+
+    const download = await instance.inject({
+      method: "GET",
+      url: `/api/v1/artifacts/${baseline.id}/files/run-json`,
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(download.headers["content-type"]).toContain("application/json");
+    expect(download.headers["content-disposition"]).toContain("run.json");
+    expect(download.body).toContain("[RAW_RESPONSE_NOT_RETAINED]");
+    expect(download.body).not.toContain("canary-do-not-leak");
+    await writeFile(join(reportRoot, baseline.runId, "report.html"), "<p>Safe report</p>");
+    await writeFile(join(reportRoot, baseline.runId, "logs.ndjson"), '{"event":"safe"}\n');
+    const html = await instance.inject({
+      method: "GET",
+      url: `/api/v1/artifacts/${baseline.id}/files/html-report`,
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(html.headers["content-type"]).toContain("text/html");
+    expect(html.headers["content-disposition"]).toContain("inline");
+    const logs = await instance.inject({
+      method: "GET",
+      url: `/api/v1/artifacts/${baseline.id}/files/redacted-logs`,
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(logs.headers["content-type"]).toContain("application/x-ndjson");
+    expect(logs.headers["content-disposition"]).toContain("attachment");
+    const detail = await instance.inject({
+      method: "GET",
+      url: `/api/v1/artifacts/${baseline.id}`,
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(detail.json().files).toEqual([
+      "run-json",
+      "human-review",
+      "html-report",
+      "redacted-logs",
+    ]);
+    const reviewDownload = await instance.inject({
+      method: "GET",
+      url: `/api/v1/artifacts/${baseline.id}/files/human-review`,
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(reviewDownload.headers["content-disposition"]).toContain("human-review.json");
+    expect(reviewDownload.json()).toMatchObject({ items: [] });
+    const reviewIndex = await instance.inject({
+      method: "GET",
+      url: "/api/v1/review-items",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(reviewIndex.json()).toEqual([]);
+    const missingDownload = await instance.inject({
+      method: "GET",
+      url: "/api/v1/artifacts/artifact-missing/files/run-json",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(missingDownload.json().code).toBe("ARTIFACT_NOT_FOUND");
+    const denied = await instance.inject({
+      method: "GET",
+      url: `/api/v1/artifacts/${baseline.id}/files/package-json`,
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(denied.statusCode).toBe(404);
+    expect(denied.json().code).toBe("ARTIFACT_FILE_NOT_FOUND");
+  });
+
   it("serves health, artifact index, and missing-project states", async () => {
     const instance = await server();
     const headers = { host: "127.0.0.1:4317" };
@@ -335,5 +540,27 @@ describe("Studio API security and read endpoints", () => {
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ code: "ARTIFACT_NOT_FOUND", status: 404 });
+  });
+
+  it("returns a safe not-found problem when cancelling an unknown run", async () => {
+    const instance = await server();
+    const bootstrap = await instance.inject({
+      method: "GET",
+      url: "/api/v1/bootstrap",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const response = await instance.inject({
+      method: "POST",
+      url: "/api/v1/runs/missing/cancel",
+      headers: {
+        host: "127.0.0.1:4317",
+        origin: "http://127.0.0.1:4317",
+        cookie: bootstrap.headers["set-cookie"]?.split(";")[0] ?? "",
+        "x-csrf-token": bootstrap.json().csrfToken as string,
+      },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "RUN_NOT_FOUND", status: 404 });
   });
 });

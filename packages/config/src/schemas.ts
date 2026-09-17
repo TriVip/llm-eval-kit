@@ -301,6 +301,15 @@ export const runArtifactSchema = z
         })
         .passthrough(),
     ),
+    termination: z
+      .object({
+        kind: z.literal("CANCELLED"),
+        selectedCases: z.number().int().nonnegative(),
+        completedCases: z.number().int().nonnegative(),
+        requestedAt: z.string().datetime(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

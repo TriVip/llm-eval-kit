@@ -14,9 +14,11 @@ import {
   ArtifactPage,
   ArtifactsPage,
   CasePage,
+  ComparePage,
   LiveRunPage,
   NewRunPage,
   OverviewPage,
+  ReviewPage,
   filterArtifactCases,
 } from "../src/pages.js";
 import { AppShell } from "../src/shell.js";
@@ -384,6 +386,87 @@ describe("Artifact routes and client", () => {
     expect(screen.getByRole("link", { name: "REFUND_001" })).toBeTruthy();
     expect(screen.queryByText("SHIPPING_001")).toBeNull();
   });
+
+  it("requires two explicit confirmations and a matching hash before baseline overwrite", async () => {
+    let promotions = 0;
+    const currentHash = "a".repeat(64);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path === "/api/v1/bootstrap") {
+          return {
+            ok: true,
+            json: async () => ({
+              apiVersion: "1.0",
+              csrfToken: "token-1",
+              capabilities: { readArtifacts: true, runEvaluations: true },
+              projects: [
+                {
+                  id: "ecommerce-support",
+                  name: "E-commerce Support",
+                  targets: [],
+                  suites: [],
+                  scenarios: [],
+                },
+              ],
+              artifacts: [],
+            }),
+          };
+        }
+        if (path === "/api/v1/baselines") {
+          promotions += 1;
+          if (promotions === 1) {
+            return {
+              ok: false,
+              status: 409,
+              json: async () => ({
+                apiVersion: "1.0",
+                type: "about:blank",
+                title: "Baseline was not promoted",
+                status: 409,
+                code: "BASELINE_EXISTS",
+                detail: "A baseline already exists.",
+                correlationId: "request-1",
+                currentHash,
+              }),
+            };
+          }
+          return {
+            ok: true,
+            json: async () => ({
+              apiVersion: "1.0",
+              projectId: "ecommerce-support",
+              suiteId: "main",
+              artifactId: summary.id,
+              baselineHash: "b".repeat(64),
+              status: "PROMOTED",
+            }),
+          };
+        }
+        return { ok: true, json: async () => artifactDetail };
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[`/artifacts/${summary.id}`]}>
+          <Routes>
+            <Route path="/artifacts/:artifactId" element={<ArtifactPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const reviewed = await screen.findByLabelText(/I reviewed the run status/);
+    fireEvent.click(reviewed);
+    fireEvent.click(screen.getByRole("button", { name: "Promote baseline" }));
+    await screen.findByText("Baseline already exists.");
+    expect(screen.getByText(`Current hash: ${currentHash}`)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Replace this exact baseline/));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm overwrite" }));
+    await screen.findByText("Baseline promoted and hash-verified.");
+    expect(promotions).toBe(2);
+  });
 });
 
 describe("New Run", () => {
@@ -577,6 +660,222 @@ describe("Live Run", () => {
       "/artifacts/artifact-12345678",
     );
     await expectNoAxeViolations(container);
+  });
+
+  it("requests cancellation with the session token and renders the safe transition", async () => {
+    class EventSourceMock {
+      addEventListener() {}
+      close() {}
+    }
+    vi.stubGlobal("EventSource", EventSourceMock);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input);
+      if (path === "/api/v1/bootstrap") {
+        return {
+          ok: true,
+          json: async () => ({
+            apiVersion: "1.0",
+            csrfToken: "token-1",
+            capabilities: { readArtifacts: true, runEvaluations: true },
+            projects: [],
+            artifacts: [],
+          }),
+        };
+      }
+      if (path === "/api/v1/runs/run-1/cancel" && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            apiVersion: "1.0",
+            runId: "run-1",
+            state: "CANCELLING",
+            projectId: "ecommerce-support",
+            suiteId: "main",
+            selectedCases: 20,
+            completedCases: 4,
+            startedAt: "2026-09-17T00:00:00.000Z",
+            safeMessage: "Cancellation requested. Completed evidence will be preserved.",
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          apiVersion: "1.0",
+          runId: "run-1",
+          state: "RUNNING",
+          projectId: "ecommerce-support",
+          suiteId: "main",
+          selectedCases: 20,
+          completedCases: 4,
+          startedAt: "2026-09-17T00:00:00.000Z",
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/runs/run-1"]}>
+          <Routes>
+            <Route path="/runs/:runId" element={<LiveRunPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const cancel = await screen.findByRole("button", { name: "Cancel run" });
+    fireEvent.click(cancel);
+    await waitFor(() => expect(screen.getByText("CANCELLING")).toBeTruthy());
+    expect(screen.getByText(/Cancelling safely/)).toBeTruthy();
+    expect(screen.getByText(/Cancellation requested/)).toBeTruthy();
+    const request = fetchMock.mock.calls.find(([path]) => path === "/api/v1/runs/run-1/cancel");
+    expect(request?.[1]).toMatchObject({
+      method: "POST",
+      headers: expect.objectContaining({ "x-csrf-token": "token-1" }),
+    });
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe("Regression workflows", () => {
+  it("renders accessible canonical comparison deltas and critical regressions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path === "/api/v1/bootstrap") {
+          return {
+            ok: true,
+            json: async () => ({
+              apiVersion: "1.0",
+              csrfToken: "token-1",
+              capabilities: { readArtifacts: true, runEvaluations: true },
+              projects: [],
+              artifacts: [],
+            }),
+          };
+        }
+        if (path === "/api/v1/artifacts") {
+          return {
+            ok: true,
+            json: async () =>
+              ["base", "candidate"].map((runId, index) => ({
+                id: `artifact-${runId}`,
+                runId,
+                suiteId: "main",
+                status: index === 0 ? "PASSED" : "QUALITY_FAILED",
+                startedAt: `2026-09-17T00:00:0${index}.000Z`,
+                selectedCases: 1,
+                passRate: index === 0 ? 1 : 0,
+                errorRate: 0,
+              })),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            apiVersion: "1.0",
+            comparison: {
+              schemaVersion: "1.0",
+              baselineRunId: "base",
+              candidateRunId: "candidate",
+              classification: {
+                matched: ["REFUND_001"],
+                added: [],
+                removed: [],
+                changed: [],
+              },
+              overallPassRate: { baseline: 1, candidate: 0, delta: -1 },
+              categories: [
+                {
+                  category: "refund_policy",
+                  matchedCaseIds: ["REFUND_001"],
+                  passRate: { baseline: 1, candidate: 0, delta: -1 },
+                },
+              ],
+              criticalRegressionCaseIds: ["REFUND_001"],
+              gateFailures: [
+                {
+                  code: "CRITICAL_CASE_REGRESSION",
+                  reason: "A critical case newly failed.",
+                  affectedCaseIds: ["REFUND_001"],
+                },
+              ],
+              status: "QUALITY_FAILED",
+            },
+          }),
+        };
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ComparePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByText("base · PASSED")).toHaveLength(2));
+    fireEvent.change(screen.getByLabelText("Baseline"), {
+      target: { value: "artifact-base" },
+    });
+    fireEvent.change(screen.getByLabelText("Candidate"), {
+      target: { value: "artifact-candidate" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Compare artifacts" }));
+    await screen.findByText("CRITICAL_CASE_REGRESSION");
+    expect(screen.getAllByText("-100.0 pp")).toHaveLength(2);
+    await expectNoAxeViolations(container);
+  });
+
+  it("shows an honest empty human-review state", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => [] })),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReviewPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByText("No review items");
+    await expectNoAxeViolations(container);
+  });
+
+  it("links human-review evidence back to the canonical case", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          {
+            artifactId: summary.id,
+            runId: summary.runId,
+            caseId: "REFUND_001",
+            category: "refund_policy",
+            severity: "CRITICAL",
+            verdict: "WARNING",
+            confidence: 0.51,
+            reasons: ["Human judgment is required."],
+          },
+        ],
+      })),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReviewPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const link = await screen.findByRole("link", { name: "REFUND_001" });
+    expect(link.getAttribute("href")).toBe(`/artifacts/${summary.id}/cases/REFUND_001`);
+    expect(screen.getByText(/Confidence: 0.510/)).toBeTruthy();
   });
 });
 

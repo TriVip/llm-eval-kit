@@ -86,6 +86,8 @@ export class LlmJudgeEvaluator implements Evaluator<LlmJudgeConfig> {
             },
           ),
         this.options.execution,
+        undefined,
+        input.signal,
       ),
     );
 
