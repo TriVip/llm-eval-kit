@@ -23,10 +23,15 @@
     "benchmark:mock": "vitest run packages/core/test/performance.test.ts",
     "studio:api": "pnpm --filter @llm-eval-kit/studio-api build && pnpm --filter @llm-eval-kit/studio-api start",
     "studio:web": "pnpm --filter @llm-eval-kit/studio-web dev",
+    "studio:dev": "node scripts/studio-dev.mjs",
+    "studio:start": "pnpm build && LLMEVAL_STUDIO_ASSETS=apps/studio-web/dist node apps/studio-api/dist/cli.js",
+    "studio:verify": "pnpm build && node scripts/verify-studio-production.mjs",
+    "studio:e2e": "playwright test",
     "release:verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test:coverage && pnpm calibration:verify && node scripts/verify-portfolio.mjs && node scripts/provider-smoke.mjs && node scripts/verify-release.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.5.1",
     "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.10.0",
