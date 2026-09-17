@@ -150,21 +150,32 @@ For semantic evaluation, configure a separate `judge` target and use `llm_judge`
 
 ## Local Evaluation Studio
 
-Sprint 8 adds a controlled mock-run workflow to the secure Studio. It displays registered projects and provider readiness, validates and plans allowlisted runs without provider calls, streams bounded redacted progress, and renders canonical result and case evidence. The browser never recalculates final verdicts.
+The Local Evaluation Studio is the visual interface over the same application SDK used by the CLI. It displays registered projects and provider readiness, validates and plans allowlisted runs without provider calls, streams bounded redacted progress, and renders canonical results, case evidence, comparisons, review queues, and guarded baseline promotion. The browser never recalculates final verdicts.
 
-After `pnpm install`, use two terminals:
+After `pnpm install`, start the production build with one command:
 
 ```bash
-# Terminal 1 — loopback API
-pnpm studio:api
-
-# Terminal 2 — React/Vite UI
-pnpm studio:web
+pnpm studio:start
 ```
 
-Open `http://127.0.0.1:4173`. The API binds only to `127.0.0.1:4317`; the browser receives opaque IDs and redacted evidence, never unrestricted filesystem paths or provider secrets.
+Open `http://127.0.0.1:4317`. Studio serves compiled assets and the API from one loopback origin. The browser receives opaque IDs and redacted evidence, never unrestricted filesystem paths or provider secrets.
 
-From the Overview, choose either the 64-case portfolio pass or the single-case critical refund regression. Review the authoritative plan, start the run, follow preliminary progress, then open the persisted canonical result. Run cancellation, comparison, baseline promotion, and human-review workflows remain planned for later UI sprints.
+For UI development with automatic Vite refresh, use:
+
+```bash
+pnpm studio:dev
+```
+
+From Overview, choose either the 64-case portfolio pass or the single-case critical refund regression. Review the authoritative plan, start the run, follow preliminary progress, then open the persisted canonical result. Comparison and baseline replacement require explicit review; baseline state is never updated automatically.
+
+Production and browser verification commands:
+
+```bash
+pnpm studio:verify       # production assets, loopback bind, startup budget
+pnpm studio:e2e          # Chromium and Firefox (requires Playwright browsers)
+```
+
+See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), and [known limitations](docs/LIMITATIONS.md).
 
 Provider unit and contract tests use injected HTTP transports; the default CI never requires credentials or spends API budget.
 

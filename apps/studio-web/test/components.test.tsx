@@ -470,6 +470,71 @@ describe("Artifact routes and client", () => {
 });
 
 describe("New Run", () => {
+  it("moves keyboard focus to a validation error", async () => {
+    const bootstrap = {
+      apiVersion: "1.0",
+      csrfToken: "token-1",
+      capabilities: { readArtifacts: true, runEvaluations: true },
+      projects: [
+        {
+          id: "ecommerce-support",
+          name: "E-commerce Support",
+          targets: [{ id: "mock", name: "mock" }],
+          suites: [{ id: "main", name: "Main" }],
+          scenarios: [{ id: "portfolio-pass", name: "Portfolio pass" }],
+        },
+      ],
+      artifacts: [],
+    };
+    const project = {
+      id: "ecommerce-support",
+      name: "E-commerce Support",
+      targets: [{ id: "mock", provider: "mock", model: "fixture-v1", ready: true }],
+      suites: [{ id: "main", name: "Main", caseCount: 64, fixtureSets: [{ id: "passing" }] }],
+      scenarios: [
+        {
+          id: "portfolio-pass",
+          name: "Portfolio pass",
+          targetId: "mock",
+          suiteId: "main",
+          fixtureSetId: "passing",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string, init?: RequestInit) => {
+        if (path === "/api/v1/bootstrap") return { ok: true, json: async () => bootstrap };
+        if (path.includes("/projects/") && init?.method !== "POST")
+          return { ok: true, json: async () => project };
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({
+            type: "about:blank",
+            title: "Invalid run request",
+            status: 400,
+            code: "INVALID_RUN_REQUEST",
+            detail: "The selected filters are invalid.",
+            correlationId: "request-1",
+          }),
+        };
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/runs/new?project=ecommerce-support"]}>
+          <NewRunPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getByDisplayValue("passing")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Validate & plan" }));
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+  });
+
   it("validates and displays an authoritative plan before enabling execution", async () => {
     const bootstrap = {
       apiVersion: "1.0",
@@ -735,6 +800,87 @@ describe("Live Run", () => {
       headers: expect.objectContaining({ "x-csrf-token": "token-1" }),
     });
     await expectNoAxeViolations(container);
+  });
+
+  it("coalesces a 500-event progress burst into one animation-frame update", async () => {
+    class EventSourceMock {
+      static listeners = new Map<string, EventListener>();
+      addEventListener(type: string, listener: EventListener) {
+        EventSourceMock.listeners.set(type, listener);
+      }
+      close() {}
+    }
+    let frame: FrameRequestCallback | undefined;
+    const requestFrame = vi.fn((callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
+    vi.stubGlobal("EventSource", EventSourceMock);
+    vi.stubGlobal("requestAnimationFrame", requestFrame);
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => ({
+        ok: true,
+        json: async () =>
+          String(input) === "/api/v1/bootstrap"
+            ? {
+                apiVersion: "1.0",
+                csrfToken: "token-1",
+                capabilities: { readArtifacts: true, runEvaluations: true },
+                projects: [],
+                artifacts: [],
+              }
+            : {
+                apiVersion: "1.0",
+                runId: "run-1",
+                state: "CANCELLED",
+                projectId: "ecommerce-support",
+                suiteId: "main",
+                selectedCases: 500,
+                completedCases: 0,
+                startedAt: "2026-09-17T00:00:00.000Z",
+                completedAt: "2026-09-17T00:00:01.000Z",
+              },
+      })),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/runs/run-1"]}>
+          <Routes>
+            <Route path="/runs/:runId" element={<LiveRunPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByText("CANCELLED");
+    for (let completed = 1; completed <= 500; completed += 1) {
+      EventSourceMock.listeners.get("case.completed")?.(
+        new MessageEvent("case.completed", {
+          data: JSON.stringify({
+            apiVersion: "1.0",
+            id: completed,
+            runId: "run-1",
+            timestamp: "2026-09-17T00:00:00.500Z",
+            type: "case.completed",
+            caseId: `CASE_${completed}`,
+            progress: {
+              selected: 500,
+              running: 500 - completed,
+              completed,
+              passed: completed,
+              failed: 0,
+              warning: 0,
+              errors: 0,
+            },
+          }),
+        }),
+      );
+    }
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    frame?.(performance.now());
+    await screen.findByText("500 / 500");
   });
 });
 

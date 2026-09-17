@@ -75,8 +75,8 @@ The Vite production bundle is 474.78 kB JavaScript (144.75 kB gzip) and 10.98 kB
 
 Sprint 9 Definition of Done is satisfied locally for UI-T028–UI-T037. Contract, lifecycle, cancellation, comparison, baseline conflict, review, provider-readiness, download-boundary, accessibility-component, and recovery behaviors have automated evidence.
 
-The sprint is not merged evidence until the protected pull request passes GitHub Actions and is merged. Manual current-Chromium/Firefox keyboard and focus journeys, full threat-model reruns, bundle/startup optimization, supported-platform verification, production packaging, documentation refresh, and release-candidate evidence remain Sprint 10 scope.
+Protected PR #12 passed its required checks and was squash-merged as `2faf099ffc0faed3514204441fce6bff523fc52b`. Manual current-Chromium/Firefox keyboard and focus journeys, full threat-model reruns, bundle/startup optimization, supported-platform verification, production packaging, documentation refresh, and release-candidate evidence remain Sprint 10 scope.
 
 ## 6. Next authorized scope
 
-After the protected Sprint 9 pull request merges, Sprint 10 may begin with UI-T038–UI-T045. Product Phase 2 is not complete until that hardening and release sprint passes its final gate.
+Sprint 10 is authorized with UI-T038–UI-T045. Product Phase 2 is not complete until that hardening and release sprint passes its final gate.

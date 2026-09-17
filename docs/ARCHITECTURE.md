@@ -38,3 +38,12 @@ Provider text, judge output, datasets and referenced schemas are untrusted input
 ## Reproducibility
 
 Artifacts include schema versions, definition hashes, config/suite hashes, resolved provider/model identity, timestamps and per-case evidence. Baseline comparisons exclude added, removed or definition-changed cases from regression math.
+
+## Studio runtime modes
+
+- `pnpm studio:dev` supervises the loopback API and Vite development server for local UI work.
+- `pnpm studio:start` builds all workspaces, then serves the compiled React assets and API from `127.0.0.1:4317`.
+- Static assets are extension- and filename-allowlisted; deep links receive only the compiled `index.html`, while unknown API routes retain typed JSON `404` responses.
+- Live progress is observational and coalesced to one browser animation-frame update. Terminal state invalidates the session immediately and the persisted artifact remains authoritative.
+
+CLI, SDK, and Studio API parity is semantic rather than byte-identical: run IDs, timestamps, paths, and durations may differ, while selected cases, verdicts, evaluator evidence, metrics, and gate failures must match.
