@@ -1,26 +1,30 @@
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 
 import {
+  baselinePromotionRequestSchema,
+  comparisonRequestSchema,
   STUDIO_API_VERSION,
   studioRunRequestSchema,
   type SafeRunEvent,
   type StudioRunRequest,
 } from "@llm-eval-kit/api-contracts";
-import { writeRunArtifact } from "@llm-eval-kit/artifacts";
+import { buildHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
 import { ConfigurationError } from "@llm-eval-kit/core";
 import { createEvaluationApplication } from "@llm-eval-kit/sdk";
 
 import { ArtifactIndex } from "./artifact-index.js";
+import { BaselinePromotionError, BaselineStore } from "./baseline-store.js";
 import { ProjectRegistry } from "./project-registry.js";
 import { RunRegistry } from "./run-registry.js";
 
 export type StudioServerOptions = {
   workspaceRoot: string;
   reportRoot: string;
+  baselineRoot?: string;
   manifestPaths?: string[];
   origin?: string;
   allowedHosts?: string[];
@@ -42,6 +46,7 @@ function problem(
   title: string,
   detail: string,
   fieldErrors?: Array<{ path: string; message: string }>,
+  currentHash?: string,
 ) {
   return reply
     .code(status)
@@ -55,6 +60,7 @@ function problem(
       detail,
       correlationId: request.id,
       ...(fieldErrors === undefined ? {} : { fieldErrors }),
+      ...(currentHash === undefined ? {} : { currentHash }),
     });
 }
 
@@ -98,6 +104,9 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
     ...(options.environment === undefined ? {} : { environment: options.environment }),
   });
   let artifacts = await ArtifactIndex.create(options.reportRoot);
+  const baselines = await BaselineStore.create(
+    options.baselineRoot ?? resolve(options.reportRoot, "baselines"),
+  );
   const runs = new RunRegistry();
   const application = createEvaluationApplication();
   const server = Fastify({
@@ -307,7 +316,11 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
             ? {}
             : { targetFixtures: resolved.targetFixtures }),
         },
-        { runId, onEvent: (event) => runs.observe(runId, event) },
+        {
+          runId,
+          signal: runs.signal(runId),
+          onEvent: (event) => runs.observe(runId, event),
+        },
       )
       .then(async (artifact) => {
         await writeRunArtifact(artifact, options.reportRoot);
@@ -335,6 +348,23 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
       )
     );
   });
+  server.post<{ Params: { runId: string } }>(
+    "/api/v1/runs/:runId/cancel",
+    async (request, reply) => {
+      try {
+        return runs.cancel(request.params.runId);
+      } catch {
+        return problem(
+          reply,
+          request,
+          404,
+          "RUN_NOT_FOUND",
+          "Run not found",
+          "The run session does not exist.",
+        );
+      }
+    },
+  );
   server.get<{ Params: { runId: string } }>(
     "/api/v1/runs/:runId/events",
     async (request, reply) => {
@@ -397,16 +427,191 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
     },
   );
   server.get("/api/v1/artifacts", async () => artifacts.list());
+  server.get("/api/v1/review-items", async () => artifacts.reviewItems());
   server.get<{ Params: { artifactId: string } }>(
     "/api/v1/artifacts/:artifactId",
     async (request, reply) => {
       const item = artifacts.get(request.params.artifactId);
-      return (
-        item ??
-        problem(reply, request, 404, "ARTIFACT_NOT_FOUND", "Not found", "Artifact was not found.")
-      );
+      if (item === undefined) {
+        return problem(
+          reply,
+          request,
+          404,
+          "ARTIFACT_NOT_FOUND",
+          "Not found",
+          "Artifact was not found.",
+        );
+      }
+      const files = ["run-json", "human-review"];
+      if ((await artifacts.file(item.summary.id, "html-report")) !== undefined)
+        files.push("html-report");
+      if ((await artifacts.file(item.summary.id, "redacted-logs")) !== undefined)
+        files.push("redacted-logs");
+      return { ...item, files };
     },
   );
+  server.get<{ Params: { artifactId: string; kind: string } }>(
+    "/api/v1/artifacts/:artifactId/files/:kind",
+    async (request, reply) => {
+      const item = artifacts.get(request.params.artifactId);
+      if (item === undefined) {
+        return problem(
+          reply,
+          request,
+          404,
+          "ARTIFACT_NOT_FOUND",
+          "Not found",
+          "Artifact was not found.",
+        );
+      }
+      const kind = request.params.kind;
+      if (kind === "html-report" || kind === "redacted-logs") {
+        const file = await artifacts.file(item.summary.id, kind);
+        if (file === undefined) {
+          return problem(
+            reply,
+            request,
+            404,
+            "ARTIFACT_FILE_NOT_FOUND",
+            "Not found",
+            "The requested allowlisted artifact file is unavailable.",
+          );
+        }
+        const html = kind === "html-report";
+        return reply
+          .type(html ? "text/html; charset=utf-8" : "application/x-ndjson; charset=utf-8")
+          .header(
+            "Content-Disposition",
+            `${html ? "inline" : "attachment"}; filename="${html ? "report.html" : "logs.ndjson"}"`,
+          )
+          .send(await readFile(file, "utf8"));
+      }
+      const payload =
+        kind === "run-json"
+          ? item.artifact
+          : kind === "human-review"
+            ? buildHumanReviewQueue(item.artifact)
+            : undefined;
+      if (payload === undefined) {
+        return problem(
+          reply,
+          request,
+          404,
+          "ARTIFACT_FILE_NOT_FOUND",
+          "Not found",
+          "The requested allowlisted artifact file is unavailable.",
+        );
+      }
+      const filename = kind === "run-json" ? "run.json" : "human-review.json";
+      return reply
+        .type("application/json; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .send(`${JSON.stringify(payload, null, 2)}\n`);
+    },
+  );
+  server.post<{ Body: unknown }>("/api/v1/comparisons", async (request, reply) => {
+    const parsed = comparisonRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return problem(
+        reply,
+        request,
+        400,
+        "INVALID_COMPARISON_REQUEST",
+        "Invalid comparison request",
+        "Select a registered candidate and baseline artifact.",
+      );
+    }
+    const candidate = artifacts.get(parsed.data.candidateArtifactId);
+    const baseline = artifacts.get(parsed.data.baselineArtifactId);
+    if (candidate === undefined || baseline === undefined) {
+      return problem(
+        reply,
+        request,
+        404,
+        "ARTIFACT_NOT_FOUND",
+        "Not found",
+        "One or more comparison artifacts were not found.",
+      );
+    }
+    try {
+      return {
+        apiVersion: STUDIO_API_VERSION,
+        comparison: application.compare({
+          candidate: candidate.artifact,
+          baseline: baseline.artifact,
+        }),
+      };
+    } catch (error) {
+      return problem(
+        reply,
+        request,
+        409,
+        "ARTIFACTS_INCOMPATIBLE",
+        "Artifacts are incompatible",
+        error instanceof ConfigurationError
+          ? error.safeMessage
+          : "The selected artifacts cannot be compared.",
+      );
+    }
+  });
+  server.post<{ Body: unknown }>("/api/v1/baselines", async (request, reply) => {
+    const parsed = baselinePromotionRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return problem(
+        reply,
+        request,
+        400,
+        "INVALID_BASELINE_REQUEST",
+        "Invalid baseline request",
+        "Select a registered artifact and baseline target.",
+      );
+    }
+    const item = artifacts.get(parsed.data.artifactId);
+    const project = registry.get(parsed.data.projectId);
+    if (item === undefined || project === undefined) {
+      return problem(
+        reply,
+        request,
+        404,
+        "BASELINE_TARGET_NOT_FOUND",
+        "Not found",
+        "The artifact or registered baseline target was not found.",
+      );
+    }
+    try {
+      const baselineHash = await baselines.promote({
+        artifact: item.artifact,
+        projectId: parsed.data.projectId,
+        suiteId: parsed.data.suiteId,
+        ...(parsed.data.overwrite === undefined ? {} : { overwrite: parsed.data.overwrite }),
+        ...(parsed.data.expectedCurrentHash === undefined
+          ? {}
+          : { expectedCurrentHash: parsed.data.expectedCurrentHash }),
+      });
+      return {
+        apiVersion: STUDIO_API_VERSION,
+        projectId: parsed.data.projectId,
+        suiteId: parsed.data.suiteId,
+        artifactId: parsed.data.artifactId,
+        baselineHash,
+        status: "PROMOTED" as const,
+      };
+    } catch (error) {
+      if (error instanceof BaselinePromotionError) {
+        return problem(
+          reply,
+          request,
+          error.code === "BASELINE_INELIGIBLE" ? 422 : 409,
+          error.code,
+          "Baseline was not promoted",
+          error.message,
+          undefined,
+          error.currentHash,
+        );
+      }
+      throw error;
+    }
+  });
   return server;
 }
 

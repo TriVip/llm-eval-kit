@@ -157,6 +157,7 @@ export interface LlmProvider {
 export type EvaluationInput = {
   testCase: EvaluationCase;
   generation: GenerationResult;
+  signal?: AbortSignal;
 };
 
 export type EvaluationResult = {
@@ -281,6 +282,12 @@ export type RunArtifact = {
   metrics: RunMetrics;
   gateFailures: GateFailure[];
   cases: CaseResult[];
+  termination?: {
+    kind: "CANCELLED";
+    selectedCases: number;
+    completedCases: number;
+    requestedAt: string;
+  };
 };
 
 export type BaselineCaseClassification = {

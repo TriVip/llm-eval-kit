@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { lstat, readdir, realpath, stat } from "node:fs/promises";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 
-import type { ArtifactSummary } from "@llm-eval-kit/api-contracts";
+import type { ArtifactSummary, ReviewItem } from "@llm-eval-kit/api-contracts";
+import { buildHumanReviewQueue } from "@llm-eval-kit/artifacts";
 import { loadRunArtifact } from "@llm-eval-kit/config";
 import { redactRunArtifact, type RunArtifact } from "@llm-eval-kit/core";
 
@@ -11,6 +12,12 @@ import { canonicalRoot, isContained } from "./safe-path.js";
 const maximumArtifactBytes = 10 * 1024 * 1024;
 
 type IndexedArtifact = { summary: ArtifactSummary; artifact: RunArtifact };
+export type ArtifactFileKind = "html-report" | "redacted-logs";
+
+const artifactFiles: Record<ArtifactFileKind, string> = {
+  "html-report": "report.html",
+  "redacted-logs": "logs.ndjson",
+};
 
 async function discover(directory: string, root: string, results: string[]): Promise<void> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -37,6 +44,7 @@ function opaqueId(root: string, path: string, runId: string): string {
 export class ArtifactIndex {
   private constructor(
     private readonly artifacts: ReadonlyMap<string, IndexedArtifact>,
+    private readonly paths: ReadonlyMap<string, string>,
     public readonly reportRoot: string,
   ) {}
 
@@ -45,6 +53,7 @@ export class ArtifactIndex {
     const paths: string[] = [];
     await discover(root, root, paths);
     const artifacts = new Map<string, IndexedArtifact>();
+    const indexedPaths = new Map<string, string>();
     for (const path of paths.sort()) {
       if ((await stat(path)).size > maximumArtifactBytes) continue;
       const artifact = await loadRunArtifact(path).catch(() => undefined);
@@ -68,8 +77,9 @@ export class ArtifactIndex {
           errorRate: artifact.metrics.errorRate,
         },
       });
+      indexedPaths.set(id, path);
     }
-    return new ArtifactIndex(artifacts, root);
+    return new ArtifactIndex(artifacts, indexedPaths, root);
   }
 
   list(): ArtifactSummary[] {
@@ -80,5 +90,27 @@ export class ArtifactIndex {
 
   get(id: string): IndexedArtifact | undefined {
     return this.artifacts.get(id);
+  }
+
+  reviewItems(): ReviewItem[] {
+    return [...this.artifacts.entries()].flatMap(([artifactId, { artifact }]) =>
+      buildHumanReviewQueue(artifact).items.map((item) => ({
+        artifactId,
+        runId: artifact.metadata.runId,
+        ...item,
+        verdict: "WARNING" as const,
+      })),
+    );
+  }
+
+  async file(id: string, kind: ArtifactFileKind): Promise<string | undefined> {
+    const runPath = this.paths.get(id);
+    if (runPath === undefined) return undefined;
+    const requested = join(dirname(runPath), artifactFiles[kind]);
+    const canonical = await realpath(requested).catch(() => undefined);
+    if (canonical === undefined || !isContained(this.reportRoot, canonical)) return undefined;
+    const metadata = await stat(canonical).catch(() => undefined);
+    if (metadata?.isFile() !== true || metadata.size > maximumArtifactBytes) return undefined;
+    return canonical;
   }
 }

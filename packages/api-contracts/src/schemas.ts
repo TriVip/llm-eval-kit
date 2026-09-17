@@ -76,6 +76,8 @@ export const runSessionSnapshotSchema = z
       "READY",
       "REJECTED",
       "RUNNING",
+      "CANCELLING",
+      "CANCELLED",
       "COMPLETED",
       "QUALITY_FAILED",
       "OPERATIONAL_FAILED",
@@ -101,6 +103,10 @@ export const studioProblemSchema = z
     code: identifier,
     detail: z.string().min(1),
     correlationId: identifier,
+    currentHash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
     fieldErrors: z
       .array(z.object({ path: z.string(), message: z.string().min(1) }).strict())
       .optional(),
@@ -120,6 +126,7 @@ export const safeRunEventSchema = z
       "case.started",
       "case.completed",
       "artifact.written",
+      "run.cancelling",
       "run.completed",
       "run.failed",
       "snapshot.required",
@@ -204,6 +211,96 @@ export const artifactSummarySchema = z
   })
   .strict();
 
+export const comparisonRequestSchema = z
+  .object({ candidateArtifactId: identifier, baselineArtifactId: identifier })
+  .strict();
+
+const metricDeltaSchema = z
+  .object({ baseline: z.number(), candidate: z.number(), delta: z.number() })
+  .strict();
+
+export const comparisonResponseSchema = z
+  .object({
+    apiVersion: z.literal(STUDIO_API_VERSION),
+    comparison: z
+      .object({
+        schemaVersion: z.literal("1.0"),
+        baselineRunId: identifier,
+        candidateRunId: identifier,
+        classification: z
+          .object({
+            matched: z.array(identifier),
+            added: z.array(identifier),
+            removed: z.array(identifier),
+            changed: z.array(identifier),
+          })
+          .strict(),
+        overallPassRate: metricDeltaSchema,
+        categories: z.array(
+          z
+            .object({
+              category: z.string().min(1),
+              matchedCaseIds: z.array(identifier),
+              passRate: metricDeltaSchema,
+            })
+            .strict(),
+        ),
+        criticalRegressionCaseIds: z.array(identifier),
+        gateFailures: z.array(
+          z
+            .object({
+              code: z.string().min(1),
+              reason: z.string().min(1),
+              affectedCaseIds: z.array(identifier),
+            })
+            .strict(),
+        ),
+        status: z.enum(["PASSED", "QUALITY_FAILED"]),
+        costDeltaUsd: metricDeltaSchema.optional(),
+        latencyDeltaMs: metricDeltaSchema.optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const baselinePromotionRequestSchema = z
+  .object({
+    artifactId: identifier,
+    projectId: identifier,
+    suiteId: identifier,
+    overwrite: z.boolean().optional(),
+    expectedCurrentHash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+  })
+  .strict();
+
+export const baselinePromotionResponseSchema = z
+  .object({
+    apiVersion: z.literal(STUDIO_API_VERSION),
+    projectId: identifier,
+    suiteId: identifier,
+    artifactId: identifier,
+    baselineHash: z.string().regex(/^[a-f0-9]{64}$/),
+    status: z.literal("PROMOTED"),
+  })
+  .strict();
+
+export const reviewItemSchema = z
+  .object({
+    artifactId: identifier,
+    runId: identifier,
+    caseId: identifier,
+    category: z.string().min(1),
+    severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+    verdict: z.literal("WARNING"),
+    score: z.number().optional(),
+    confidence: z.number().optional(),
+    reasons: z.array(z.string()),
+  })
+  .strict();
+
 export const studioBootstrapResponseSchema = z
   .object({
     apiVersion: z.literal(STUDIO_API_VERSION),
@@ -226,3 +323,8 @@ export type SafeRunEvent = z.infer<typeof safeRunEventSchema>;
 export type StudioBootstrapResponse = z.infer<typeof studioBootstrapResponseSchema>;
 export type ProjectDetail = z.infer<typeof projectDetailSchema>;
 export type ArtifactSummary = z.infer<typeof artifactSummarySchema>;
+export type ComparisonRequest = z.infer<typeof comparisonRequestSchema>;
+export type ComparisonResponse = z.infer<typeof comparisonResponseSchema>;
+export type BaselinePromotionRequest = z.infer<typeof baselinePromotionRequestSchema>;
+export type BaselinePromotionResponse = z.infer<typeof baselinePromotionResponseSchema>;
+export type ReviewItem = z.infer<typeof reviewItemSchema>;

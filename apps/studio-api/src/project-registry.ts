@@ -169,6 +169,9 @@ export class ProjectRegistry {
     if (project === undefined) throw new ConfigurationError("Project is not registered.");
     const config = project.targets.get(request.targetId);
     if (config === undefined) throw new ConfigurationError("Target is not registered.");
+    if (project.detail.targets.find(({ id }) => id === request.targetId)?.ready !== true) {
+      throw new ConfigurationError("The selected provider target is not configured on the server.");
+    }
     const registeredSuite = project.suites.get(request.suiteId);
     if (registeredSuite === undefined) throw new ConfigurationError("Suite is not registered.");
     const targetFixtures =

@@ -29,9 +29,34 @@ async function runTimedAttempt<T>(
   operation: AttemptOperation<T>,
   attempt: number,
   timeoutMs: number,
+  externalSignal?: AbortSignal,
 ): Promise<T> {
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  if (externalSignal?.aborted === true) {
+    throw new ProviderError({
+      code: "EVALUATION_CANCELLED",
+      safeMessage: "Evaluation was cancelled.",
+      retryable: false,
+    });
+  }
+
+  let rejectCancellation: ((error: ProviderError) => void) | undefined;
+  const cancellationPromise = new Promise<never>((_resolve, reject) => {
+    rejectCancellation = reject;
+  });
+  const abortFromParent = () => {
+    controller.abort(externalSignal?.reason);
+    rejectCancellation?.(
+      new ProviderError({
+        code: "EVALUATION_CANCELLED",
+        safeMessage: "Evaluation was cancelled.",
+        retryable: false,
+      }),
+    );
+  };
+  externalSignal?.addEventListener("abort", abortFromParent, { once: true });
 
   const timeoutPromise = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => {
@@ -45,11 +70,15 @@ async function runTimedAttempt<T>(
       );
     }, timeoutMs);
   });
-
   try {
-    return await Promise.race([operation(attempt, controller.signal), timeoutPromise]);
+    return await Promise.race([
+      operation(attempt, controller.signal),
+      timeoutPromise,
+      cancellationPromise,
+    ]);
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abortFromParent);
   }
 }
 
@@ -57,15 +86,17 @@ export async function executeWithRetry<T>(
   operation: AttemptOperation<T>,
   policy: RetryPolicy,
   dependencies: RetryDependencies = defaultRetryDependencies,
+  signal?: AbortSignal,
 ): Promise<T> {
   let attempt = 1;
 
   while (true) {
     try {
-      return await runTimedAttempt(operation, attempt, policy.timeoutMs);
+      return await runTimedAttempt(operation, attempt, policy.timeoutMs, signal);
     } catch (error) {
       const retryable = error instanceof ProviderError && error.retryable;
       if (!retryable || attempt > policy.maxRetries) throw error;
+      if (signal?.aborted === true) throw error;
       await dependencies.sleep(retryDelay(attempt, dependencies.random));
       attempt += 1;
     }

@@ -1,6 +1,9 @@
 import {
   artifactSummarySchema,
+  baselinePromotionResponseSchema,
+  comparisonResponseSchema,
   projectDetailSchema,
+  reviewItemSchema,
   runAcceptedResponseSchema,
   runPlanResponseSchema,
   runSessionSnapshotSchema,
@@ -8,7 +11,11 @@ import {
   studioBootstrapResponseSchema,
   validationResponseSchema,
   type ArtifactSummary,
+  type BaselinePromotionRequest,
+  type BaselinePromotionResponse,
+  type ComparisonResponse,
   type ProjectDetail,
+  type ReviewItem,
   type RunAcceptedResponse,
   type RunPlanResponse,
   type RunSessionSnapshot,
@@ -19,10 +26,28 @@ import {
 } from "@llm-eval-kit/api-contracts";
 import { z } from "zod";
 
+export class StudioRequestError extends Error {
+  public constructor(
+    public readonly status: number,
+    public readonly problem: Record<string, unknown>,
+  ) {
+    super(
+      typeof problem.detail === "string" ? problem.detail : `Studio request failed (${status}).`,
+    );
+  }
+}
+
 async function request(path: string, init?: RequestInit): Promise<unknown> {
   const response = await fetch(path, { credentials: "same-origin", ...init });
-  if (!response.ok) throw new Error(`Studio request failed (${response.status}).`);
-  return response.json() as Promise<unknown>;
+  const payload =
+    typeof response.json === "function" ? ((await response.json()) as unknown) : undefined;
+  if (!response.ok) {
+    throw new StudioRequestError(
+      response.status,
+      typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {},
+    );
+  }
+  return payload;
 }
 
 async function mutate(path: string, input: StudioRunRequest, csrfToken: string): Promise<unknown> {
@@ -74,8 +99,24 @@ export async function getRun(runId: string): Promise<RunSessionSnapshot> {
   return runSessionSnapshotSchema.parse(await request(`/api/v1/runs/${encodeURIComponent(runId)}`));
 }
 
-export function subscribeToRun(runId: string, onEvent: (event: SafeRunEvent) => void): () => void {
+export async function cancelRun(runId: string, csrfToken: string): Promise<RunSessionSnapshot> {
+  return runSessionSnapshotSchema.parse(
+    await request(`/api/v1/runs/${encodeURIComponent(runId)}/cancel`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+      body: "{}",
+    }),
+  );
+}
+
+export function subscribeToRun(
+  runId: string,
+  onEvent: (event: SafeRunEvent) => void,
+  onConnection?: (state: "CONNECTED" | "DISCONNECTED") => void,
+): () => void {
   const source = new EventSource(`/api/v1/runs/${encodeURIComponent(runId)}/events`);
+  source.addEventListener("open", () => onConnection?.("CONNECTED"));
+  source.addEventListener("error", () => onConnection?.("DISCONNECTED"));
   const eventTypes: SafeRunEvent["type"][] = [
     "run.created",
     "run.validated",
@@ -83,6 +124,7 @@ export function subscribeToRun(runId: string, onEvent: (event: SafeRunEvent) => 
     "case.started",
     "case.completed",
     "artifact.written",
+    "run.cancelling",
     "run.completed",
     "run.failed",
     "snapshot.required",
@@ -128,6 +170,7 @@ const caseSchema = z
 const artifactDetailSchema = z
   .object({
     summary: artifactSummarySchema,
+    files: z.array(z.enum(["run-json", "html-report", "human-review", "redacted-logs"])).optional(),
     artifact: z
       .object({
         status: z.enum(["PASSED", "QUALITY_FAILED", "OPERATIONAL_FAILED"]),
@@ -160,4 +203,42 @@ export async function getArtifact(artifactId: string): Promise<ArtifactDetail> {
   return artifactDetailSchema.parse(
     await request(`/api/v1/artifacts/${encodeURIComponent(artifactId)}`),
   );
+}
+
+export async function compareArtifacts(
+  candidateArtifactId: string,
+  baselineArtifactId: string,
+  csrfToken: string,
+): Promise<ComparisonResponse> {
+  return comparisonResponseSchema.parse(
+    await request("/api/v1/comparisons", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+      body: JSON.stringify({ candidateArtifactId, baselineArtifactId }),
+    }),
+  );
+}
+
+export async function promoteBaseline(
+  input: BaselinePromotionRequest,
+  csrfToken: string,
+): Promise<BaselinePromotionResponse> {
+  return baselinePromotionResponseSchema.parse(
+    await request("/api/v1/baselines", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export async function getReviewItems(): Promise<ReviewItem[]> {
+  return z.array(reviewItemSchema).parse(await request("/api/v1/review-items"));
+}
+
+export function artifactDownloadUrl(
+  artifactId: string,
+  kind: "run-json" | "html-report" | "human-review" | "redacted-logs",
+) {
+  return `/api/v1/artifacts/${encodeURIComponent(artifactId)}/files/${kind}`;
 }

@@ -33,6 +33,7 @@ export type RunEvaluationInput = {
   evaluators: EvaluatorRegistry;
   scoring: ScoringEngine;
   filters?: CaseFilters;
+  signal?: AbortSignal;
 };
 
 function canonicalize(value: unknown): unknown {
@@ -104,6 +105,7 @@ async function evaluateCase(
   config: ProjectConfig,
   runId: string,
   logEvent: RunnerDependencies["logEvent"],
+  signal?: AbortSignal,
 ): Promise<CaseResult> {
   const evaluations: EvaluationResult[] = [];
 
@@ -118,7 +120,10 @@ async function evaluateCase(
     }
 
     try {
-      const result = await evaluator.evaluate({ testCase: suiteCase, generation }, spec.config);
+      const result = await evaluator.evaluate(
+        { testCase: suiteCase, generation, ...(signal === undefined ? {} : { signal }) },
+        spec.config,
+      );
       evaluations.push({ ...result, evaluatorId: spec.id });
       await emitLog(logEvent, {
         runId,
@@ -210,6 +215,16 @@ export async function runEvaluationSuite(
     target: input.config.target,
   };
   const selectedSuite = filterEvaluationSuite(input.suite, input.filters);
+  let cancellationRequestedAt: string | undefined;
+  const recordCancellation = () => {
+    const reason = input.signal?.reason;
+    cancellationRequestedAt =
+      typeof reason === "string" && !Number.isNaN(Date.parse(reason))
+        ? new Date(reason).toISOString()
+        : dependencies.now().toISOString();
+  };
+  if (input.signal?.aborted === true) recordCancellation();
+  else input.signal?.addEventListener("abort", recordCancellation, { once: true });
   await emitLog(dependencies.logEvent, {
     runId,
     phase: "run",
@@ -276,6 +291,7 @@ export async function runEvaluationSuite(
           },
           input.config.execution,
           dependencies.retry,
+          input.signal,
         );
         const result = await evaluateCase(
           suiteCase,
@@ -285,6 +301,7 @@ export async function runEvaluationSuite(
           input.config,
           runId,
           dependencies.logEvent,
+          input.signal,
         );
         observedCostUsd +=
           (result.generation?.usage.estimatedCostUsd ?? 0) +
@@ -313,20 +330,35 @@ export async function runEvaluationSuite(
         );
       }
     },
-    () => budget !== undefined && observedCostUsd >= budget,
+    () => input.signal?.aborted === true || (budget !== undefined && observedCostUsd >= budget),
   );
 
   const unscheduled = new Set(execution.unscheduledIndexes);
   const cases = selectedSuite.cases.map((suiteCase, index) => {
-    if (unscheduled.has(index)) return providerErrorCase(suiteCase, "BUDGET_EXHAUSTED");
+    if (unscheduled.has(index)) {
+      return providerErrorCase(
+        suiteCase,
+        input.signal?.aborted === true ? "EVALUATION_CANCELLED" : "BUDGET_EXHAUSTED",
+      );
+    }
     return execution.results[index] ?? providerErrorCase(suiteCase, "INTERNAL_SCHEDULER_ERROR");
   });
+  input.signal?.removeEventListener("abort", recordCancellation);
 
   const artifact = input.scoring.buildRunArtifact(
     { ...metadata, completedAt: dependencies.now().toISOString() },
     cases,
     input.config.qualityGate,
   );
+  if (input.signal?.aborted === true) {
+    artifact.status = "OPERATIONAL_FAILED";
+    artifact.termination = {
+      kind: "CANCELLED",
+      selectedCases: selectedSuite.cases.length,
+      completedCases: cases.filter(({ errorCode }) => errorCode !== "EVALUATION_CANCELLED").length,
+      requestedAt: cancellationRequestedAt ?? dependencies.now().toISOString(),
+    };
+  }
   await emitLog(dependencies.logEvent, { runId, phase: "run", status: "completed" });
   return artifact;
 }

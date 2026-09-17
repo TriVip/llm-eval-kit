@@ -39,6 +39,7 @@ export type ProviderFactory = (input: ProviderFactoryInput) => LlmProvider;
 export type ApplicationDependencies = { createProvider?: ProviderFactory };
 export type RunControl = {
   runId?: string;
+  signal?: AbortSignal;
   onEvent?: (event: ExecutionLogEvent) => Promise<void> | void;
 };
 export interface EvaluationApplication {

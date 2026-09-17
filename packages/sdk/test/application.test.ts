@@ -145,6 +145,64 @@ describe("evaluation application facade", () => {
     expect(serialized).not.toContain("generation");
   });
 
+  it("stops scheduling after cooperative abort and returns partial canonical evidence", async () => {
+    const input = await resources();
+    const suite = {
+      ...input.suite,
+      cases: Array.from({ length: 20 }, (_, index) => ({
+        ...input.suite.cases[0]!,
+        id: `CANCEL_${String(index).padStart(3, "0")}`,
+      })),
+    };
+    let providerCalls = 0;
+    const app = createEvaluationApplication({
+      createProvider: () => ({
+        id: "abort-aware",
+        async generate(_request, context) {
+          providerCalls += 1;
+          await new Promise<void>((_resolve, reject) => {
+            context.signal.addEventListener("abort", () => reject(new Error("aborted")), {
+              once: true,
+            });
+          });
+          throw new Error("unreachable");
+        },
+      }),
+    });
+    const controller = new AbortController();
+    const requestedAt = "2026-09-17T03:00:00.000Z";
+    const artifact = await app.run(
+      {
+        ...input,
+        config: {
+          ...input.config,
+          execution: { ...input.config.execution, concurrency: 1, maxRetries: 3 },
+        },
+        suite,
+      },
+      {
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (event.phase === "provider" && event.status === "started") {
+            controller.abort(requestedAt);
+          }
+        },
+      },
+    );
+    expect(controller.signal.reason).toBe(requestedAt);
+    expect(providerCalls).toBe(1);
+    expect(artifact.status).toBe("OPERATIONAL_FAILED");
+    expect(artifact.termination).toMatchObject({
+      kind: "CANCELLED",
+      selectedCases: 20,
+      completedCases: 0,
+    });
+    expect(Date.parse(artifact.termination?.requestedAt ?? "")).not.toBeNaN();
+    expect(artifact.cases.every(({ errorCode }) => errorCode === "EVALUATION_CANCELLED")).toBe(
+      true,
+    );
+  });
+
   it("compares and explicitly promotes immutable artifacts", async () => {
     const app = createEvaluationApplication();
     const artifact = await app.run({
