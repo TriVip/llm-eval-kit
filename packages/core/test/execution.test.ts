@@ -110,4 +110,48 @@ describe("bounded concurrency scheduler", () => {
     );
     expect(maximumInFlight).toBe(1);
   });
+
+  it("reserves a released slot for the queued waiter before a fresh caller can enter", async () => {
+    const limiter = new ConcurrencyLimiter(1);
+    let inFlight = 0;
+    let maximumInFlight = 0;
+    let releaseFirst: () => void = () => undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const track = async (gate: Promise<void>) => {
+      inFlight += 1;
+      maximumInFlight = Math.max(maximumInFlight, inFlight);
+      await gate;
+      inFlight -= 1;
+    };
+
+    const first = limiter.run(() => track(firstGate));
+    const second = limiter.run(() => track(Promise.resolve()));
+
+    releaseFirst();
+    // The first continuation releases the slot, then this already-queued
+    // microtask attempts to enter before the original waiter resumes.
+    const third = Promise.resolve().then(() => limiter.run(() => track(Promise.resolve())));
+
+    await Promise.all([first, second, third]);
+    expect(maximumInFlight).toBe(1);
+  });
+
+  it("holds the configured limit under sustained overlapping load", async () => {
+    const limiter = new ConcurrencyLimiter(4);
+    let inFlight = 0;
+    let maximumInFlight = 0;
+    const tasks = Array.from({ length: 200 }, (_, index) =>
+      limiter.run(async () => {
+        inFlight += 1;
+        maximumInFlight = Math.max(maximumInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, index % 3));
+        inFlight -= 1;
+      }),
+    );
+
+    await Promise.all(tasks);
+    expect(maximumInFlight).toBeLessThanOrEqual(4);
+  });
 });

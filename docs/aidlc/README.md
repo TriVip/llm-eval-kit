@@ -26,6 +26,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 20. [Product Phase 2 — UI Traceability Matrix](AIDLC_P2_03_UI_Traceability_Matrix.md) — requirements, acceptance criteria, ADR, story, task, and test coverage.
 21. [Product Phase 2 — Sprint 6 Execution Record](AIDLC_P2_04_UI_Sprint_6_Execution_Record.md) — shared SDK, CLI parity, API contracts, and Studio manifest evidence.
 22. [Product Phase 2 — Sprint 7 Execution Record](AIDLC_P2_04_UI_Sprint_7_Execution_Record.md) — secure loopback API, canonical registries, accessible React shell, and read-only evidence flow.
+23. [Post-Sprint 7 Safety Hotfix Record](AIDLC_P2_04_Post_Sprint_7_Safety_Hotfix_Record.md) — report redaction, concurrency handoff, supported TypeScript pin, and regression evidence.
 
 ## Current delivery status
 
@@ -44,6 +45,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Product Phase 2 — UI System Design | Approved |
 | Product Phase 2 — UI Backlog & Test Design | Approved |
 | Product Phase 2 — Sprint 6 | Completed; PR #8 merged |
-| Product Phase 2 — Sprint 7 | Completed; PR #9 awaiting protected merge |
+| Product Phase 2 — Sprint 7 | Completed; PR #9 merged |
+| Post-Sprint 7 safety hotfix | Completed; PR #10 awaiting protected merge |
 
 The planned Sprint 0–5 MVP backlog is complete. Product Phase 2 now has the shared SDK plus a secure read-only Studio slice. Version 0.1.0 remains the portfolio release candidate until the complete Local Evaluation Studio reaches its release gate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.

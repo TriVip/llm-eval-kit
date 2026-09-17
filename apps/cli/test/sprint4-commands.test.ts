@@ -187,4 +187,37 @@ describe("Sprint 4 CLI commands", () => {
     expect(html).toContain("<!doctype html>");
     expect(html).not.toMatch(/https?:\/\//);
   });
+
+  it("removes raw model responses from terminal and HTML reports", async () => {
+    const cwd = join(tmpdir(), `llmeval-report-redaction-${crypto.randomUUID()}`);
+    await mkdir(cwd, { recursive: true });
+    const artifact = runArtifact("sensitive-report", "PASS");
+    artifact.cases[0]!.generation = {
+      text: "customer-confidential-model-response",
+      rawStructuredOutput: { internal_note: "private-provider-payload" },
+      usage: {},
+      latencyMs: 1,
+      resolvedProvider: "mock",
+      resolvedModel: "fixture",
+    };
+    await writeFile(join(cwd, "run.json"), JSON.stringify(artifact));
+
+    const terminal = await invoke(cwd, ["report", "--run", "run.json", "--format", "terminal"]);
+    const htmlResult = await invoke(cwd, [
+      "report",
+      "--run",
+      "run.json",
+      "--format",
+      "html",
+      "--output",
+      "safe-report.html",
+    ]);
+    const html = await readFile(join(cwd, "safe-report.html"), "utf8");
+
+    expect(terminal.code).toBe(0);
+    expect(htmlResult.code).toBe(0);
+    expect(terminal.stdout).not.toContain("customer-confidential-model-response");
+    expect(html).not.toContain("customer-confidential-model-response");
+    expect(html).not.toContain("private-provider-payload");
+  });
 });

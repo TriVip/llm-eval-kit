@@ -273,12 +273,13 @@ async function executeReport(
           candidate: artifact,
           baseline: await loadRunArtifact(resolve(context.cwd, options.baseline)),
         });
+  const safeArtifact = redactRunArtifact(artifact, false);
   if (options.format === "terminal") {
-    context.writeOut(renderTerminalReport(artifact, [], comparison));
+    context.writeOut(renderTerminalReport(safeArtifact, [], comparison));
     return 0;
   }
   const output = resolve(context.cwd, options.output ?? join(dirname(options.run), "report.html"));
-  await writeHtmlReport(artifact, output, comparison);
+  await writeHtmlReport(safeArtifact, output, comparison);
   context.writeOut(`Report: ${output}\n`);
   return 0;
 }
