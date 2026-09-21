@@ -2,14 +2,15 @@
 
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **AIDLC stage:** 2 — System Design  
-> **Status:** PROPOSED — OWNER REVIEW REQUIRED  
+> **Status:** ACCEPTED  
 > **Date:** 2026-09-21
+> **Approved:** 2026-09-21 by project owner
 
 ## 1. Architecture Decision Records
 
 ### P3-ADR-001 — Dedicated PromptOps domain with ports/adapters
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Add pure `packages/promptops` domain/application contracts and isolate persistence in `packages/promptops-sqlite`. CLI and Studio compose the same SDK facade.
 - **Why:** Prompt lifecycle and experiment policy are product domain logic, not concerns of `core`, React, Fastify, or SQLite.
 - **Trade-off:** Two packages and explicit repository ports add structure before feature code.
@@ -17,7 +18,7 @@
 
 ### P3-ADR-002 — Built-in SQLite behind an isolated adapter
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Use [`node:sqlite`](https://nodejs.org/api/sqlite.html) `DatabaseSync` with prepared statements, strict schema, foreign keys, WAL, checksummed forward migrations, and minimum Node `>=22.13.0`.
 - **Why:** The bounded single-user control plane needs transactions and queries without an ORM or external native addon.
 - **Trade-off:** `node:sqlite` is experimental in Node 22; isolation is mandatory so the adapter can be replaced.
@@ -25,7 +26,7 @@
 
 ### P3-ADR-003 — Draft/publish prompt lifecycle and content-addressed versions
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Drafts are mutable with optimistic revision; publication atomically creates a monotonic immutable version identified by canonical SHA-256.
 - **Why:** Experiments must reference exact prompt content and remain reproducible.
 - **Trade-off:** Corrections require a new version and cannot edit history.
@@ -33,7 +34,7 @@
 
 ### P3-ADR-004 — Restricted non-executable template grammar
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Support only `input.user`, optional `input.context`, and declared `variables.<id>` placeholders. No expressions, logic, includes, helpers, or evaluation.
 - **Why:** Deterministic validation and security are more important than template-language power in this increment.
 - **Trade-off:** Advanced prompt composition is deferred.
@@ -41,7 +42,7 @@
 
 ### P3-ADR-005 — Bounded variant tuple and sequential cell orchestration
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** A variant is an exact published prompt + registered target tuple. One experiment is active and one matrix cell runs at a time; existing engine concurrency applies within the cell.
 - **Why:** Prevent multiplicative provider load/cost and preserve the existing single-active-run guarantee.
 - **Trade-off:** Real-provider matrices may take longer.
@@ -49,7 +50,7 @@
 
 ### P3-ADR-006 — Canonical run artifacts remain the evaluation source of truth
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Each repetition writes `run.json`; SQLite stores opaque reference, hash, and safe summary only. Aggregation reloads and verifies artifacts.
 - **Why:** Avoid conflicting verdicts and retain portable evidence.
 - **Trade-off:** Results require filesystem artifacts and may cost more to reload than database blobs.
@@ -57,7 +58,7 @@
 
 ### P3-ADR-007 — Versioned deterministic stability aggregation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Compute repetition coverage, pass-rate distribution, verdict agreement, flaky cases, and availability-aware latency/usage/cost using pure versioned algorithms.
 - **Why:** One successful run is insufficient evidence for non-deterministic systems.
 - **Trade-off:** Metrics describe observed bounded runs, not universal statistical certainty.
@@ -65,7 +66,7 @@
 
 ### P3-ADR-008 — Deterministic recommendation, separate human decision
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** A pure policy returns only `PROMOTE_CANDIDATE`, `KEEP_BASELINE`, or `NO_DECISION`. A separate append-only human decision with rationale is required; neither action automatically promotes a baseline.
 - **Why:** Risk rules must be inspectable and humans remain accountable.
 - **Trade-off:** Promotion requires an additional explicit action.
@@ -73,7 +74,7 @@
 
 ### P3-ADR-009 — Plan/evidence hashes guard execution, resume, and decisions
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Freeze a plan hash before execution and bind recommendation/decision records to a verified evidence-set hash. Resume reuses only exact compatible cells.
 - **Why:** Prevent stale plans, mixed datasets, artifact substitution, and approval against changed evidence.
 - **Trade-off:** Legitimate input changes require a new plan/experiment.
@@ -81,7 +82,7 @@
 
 ### P3-ADR-010 — Extend existing loopback HTTP/SSE security model
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Use same-origin `/api/v1`, opaque IDs, Host/Origin/session/CSRF enforcement, safe problems, bounded SSE replay, and snapshot fallback.
 - **Why:** The Product Phase 2 controls already match the local single-user threat model.
 - **Trade-off:** The design remains intentionally unsuitable for hosted multi-user access.
@@ -89,7 +90,7 @@
 
 ### P3-ADR-011 — Portable index exports, not duplicated run evidence
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** JSON is the versioned experiment index; Markdown is its deterministic projection. Exports reference verified run artifacts and omit raw/rendered case content.
 - **Why:** Decisions need portable evidence without cloning sensitive run payloads into another format.
 - **Trade-off:** A standalone export summary cannot replace the linked artifacts for full investigation.
@@ -97,7 +98,7 @@
 
 ### P3-ADR-012 — Backward-compatible prompt integration
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Decision:** Extend the runner through an optional pure request-renderer dependency and populate existing `metadata.promptHash`; preserve default behavior and artifact schema `1.0`.
 - **Why:** PromptOps needs exact prompt execution without forcing existing users to migrate artifacts or commands.
 - **Trade-off:** Prompt ID/version live in the experiment index rather than `run.json` in the first increment.
@@ -196,23 +197,23 @@
 
 ## 6. Stage 2 review checklist
 
-- [ ] Package boundaries and dependency rules accepted.
-- [ ] `node:sqlite` adapter and Node `>=22.13.0` accepted.
-- [ ] SQLite schema, migration, backup, and corruption behavior accepted.
-- [ ] Draft/publish/hash semantics accepted.
-- [ ] Restricted prompt-template grammar accepted.
-- [ ] Variant tuple, 4×10 cap, and sequential scheduler accepted.
-- [ ] Compatibility, plan, artifact, and evidence hashes accepted.
-- [ ] Stability formulas and unavailable-metric handling accepted.
-- [ ] Recommendation precedence/defaults accepted.
-- [ ] Human decision and separate promotion boundary accepted.
-- [ ] API/CLI/Studio extensions accepted.
-- [ ] Security/privacy/threat controls accepted.
-- [ ] All 24 FR, 12 NFR, and 14 AC mapped.
-- [ ] Backward compatibility and existing ADR impact accepted.
+- [x] Package boundaries and dependency rules accepted.
+- [x] `node:sqlite` adapter and Node `>=22.13.0` accepted.
+- [x] SQLite schema, migration, backup, and corruption behavior accepted.
+- [x] Draft/publish/hash semantics accepted.
+- [x] Restricted prompt-template grammar accepted.
+- [x] Variant tuple, 4×10 cap, and sequential scheduler accepted.
+- [x] Compatibility, plan, artifact, and evidence hashes accepted.
+- [x] Stability formulas and unavailable-metric handling accepted.
+- [x] Recommendation precedence/defaults accepted.
+- [x] Human decision and separate promotion boundary accepted.
+- [x] API/CLI/Studio extensions accepted.
+- [x] Security/privacy/threat controls accepted.
+- [x] All 24 FR, 12 NFR, and 14 AC mapped.
+- [x] Backward compatibility and existing ADR impact accepted.
 
 ## 7. Stage gate
 
-**Status:** `PENDING OWNER REVIEW`
+**Status:** `PASSED`
 
-P3-ADR-001 through P3-ADR-012 remain `Proposed`. No Product Phase 3 implementation begins until the owner approves this design and Stage 3 completes backlog, test design, traceability, and sprint planning.
+The project owner accepted P3-ADR-001 through P3-ADR-012 on 2026-09-21. Stage 3 may create backlog, test design, traceability, Definition of Ready/Done, and sprint sequencing. No Product Phase 3 implementation begins until Stage 3 passes.
