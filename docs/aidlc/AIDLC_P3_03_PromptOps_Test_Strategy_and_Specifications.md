@@ -2,8 +2,9 @@
 
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **AIDLC stage:** 3 — Backlog & Test Design  
-> **Status:** PROPOSED — OWNER REVIEW REQUIRED  
+> **Status:** APPROVED
 > **Date:** 2026-09-21
+> **Approved:** 2026-09-21 by project owner
 
 ## 1. Quality objective
 
@@ -327,6 +328,6 @@ Performance evidence records hardware/runtime and is a regression budget, not a 
 
 ## 15. Stage gate
 
-**Status:** `PENDING OWNER REVIEW`
+**Status:** `PASSED — OWNER APPROVED`
 
-This strategy becomes binding only after Product Phase 3 Stage 3 approval. Test IDs may be split for execution detail, but their risk coverage cannot be silently weakened or removed.
+This strategy became binding with Product Phase 3 Stage 3 approval on 2026-09-21. Test IDs may be split for execution detail, but their risk coverage cannot be silently weakened or removed.
