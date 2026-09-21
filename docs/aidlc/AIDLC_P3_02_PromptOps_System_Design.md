@@ -3,8 +3,9 @@
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **Product increment:** Prompt Experimentation & Decision Support  
 > **AIDLC stage:** 2 — System Design  
-> **Status:** PROPOSED — OWNER REVIEW REQUIRED  
+> **Status:** APPROVED  
 > **Date:** 2026-09-21  
+> **Approved:** 2026-09-21 by project owner  
 > **Input baseline:** approved Product Phase 3 Stage 1 at merge commit `7905fc553645b032a80245573f09cde1b7d1b077`
 
 ## 1. Design objective
@@ -765,9 +766,9 @@ The architecture supports these vertical slices; estimates and task IDs belong t
 
 Every slice must run end-to-end, include tests, and preserve the prior release gates.
 
-## 28. Open review decisions
+## 28. Accepted review decisions
 
-The owner must explicitly accept or request changes to:
+The project owner accepted the following decisions on 2026-09-21:
 
 1. `node:sqlite` behind an adapter and minimum Node `>=22.13.0`, accepting that the Node 22 API is experimental;
 2. one active experiment and sequential matrix-cell execution;
@@ -778,6 +779,6 @@ The owner must explicitly accept or request changes to:
 
 ## 29. Stage gate
 
-**Status:** `PENDING OWNER REVIEW`
+**Status:** `PASSED`
 
-No Product Phase 3 implementation is authorized by this document. Stage 2 passes only after the project owner accepts the architecture and P3-ADR-001 through P3-ADR-012. Stage 3 may then create backlog, test specifications, traceability matrix, Definition of Ready/Done, and sprint sequencing.
+The project owner approved this architecture and P3-ADR-001 through P3-ADR-012 on 2026-09-21. Stage 3 may now create the backlog, detailed test specifications, traceability matrix, Definition of Ready/Done, and sprint sequencing. No Product Phase 3 implementation begins until Stage 3 also passes.
