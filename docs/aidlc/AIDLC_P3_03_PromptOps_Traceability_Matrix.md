@@ -2,8 +2,9 @@
 
 > **Project:** LLM Evaluation Framework (`llm-eval-kit`)  
 > **AIDLC stage:** 3 — Backlog & Test Design  
-> **Status:** PROPOSED — OWNER REVIEW REQUIRED  
+> **Status:** APPROVED
 > **Date:** 2026-09-21
+> **Approved:** 2026-09-21 by project owner
 
 ## 1. Functional requirements
 
@@ -127,6 +128,6 @@
 
 ## 8. Stage gate
 
-**Status:** `PENDING OWNER REVIEW`
+**Status:** `PASSED — OWNER APPROVED`
 
-Implementation may begin at Sprint 11 / P3-T001 only after the owner approves this matrix together with the backlog/sprint plan and test strategy.
+The owner approved this matrix together with the backlog/sprint plan and test strategy on 2026-09-21. Implementation is authorized to begin at Sprint 11 / P3-T001, with all completion claims still requiring the mapped evidence.
