@@ -33,9 +33,9 @@ This directory is the source of truth for the product, architecture, delivery pl
 27. [Product Phase 3 — PromptOps Inception & Requirements](AIDLC_P3_01_PromptOps_Inception_and_Requirements.md) — approved prompt experimentation scope, requirements, decision model, constraints, and acceptance criteria.
 28. [Product Phase 3 — PromptOps System Design](AIDLC_P3_02_PromptOps_System_Design.md) — approved architecture, contracts, SQLite control plane, lifecycle, policy, security, and compatibility design.
 29. [Product Phase 3 — PromptOps ADRs & Design Traceability](AIDLC_P3_02_PromptOps_ADR_and_Traceability.md) — accepted decisions and complete Stage 1 requirement mapping.
-30. [Product Phase 3 — PromptOps Backlog & Sprint Plan](AIDLC_P3_03_PromptOps_Backlog_and_Sprint_Plan.md) — proposed epics, 35 stories, 58 tasks, DoR/DoD, quality gates, and Sprint 11–17 sequence.
-31. [Product Phase 3 — PromptOps Test Strategy](AIDLC_P3_03_PromptOps_Test_Strategy_and_Specifications.md) — proposed risk strategy and 106 executable test specifications.
-32. [Product Phase 3 — PromptOps Traceability Matrix](AIDLC_P3_03_PromptOps_Traceability_Matrix.md) — proposed requirement/story/task/test/ADR coverage and sprint evidence map.
+30. [Product Phase 3 — PromptOps Backlog & Sprint Plan](AIDLC_P3_03_PromptOps_Backlog_and_Sprint_Plan.md) — approved epics, 35 stories, 58 tasks, DoR/DoD, quality gates, and Sprint 11–17 sequence.
+31. [Product Phase 3 — PromptOps Test Strategy](AIDLC_P3_03_PromptOps_Test_Strategy_and_Specifications.md) — approved risk strategy and 106 executable test specifications.
+32. [Product Phase 3 — PromptOps Traceability Matrix](AIDLC_P3_03_PromptOps_Traceability_Matrix.md) — approved requirement/story/task/test/ADR coverage and sprint evidence map.
 
 ## Current delivery status
 
@@ -61,6 +61,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Product Phase 2 — Sprint 10 | Completed; PR #13 merged |
 | Product Phase 3 — PromptOps Inception & Requirements | Approved |
 | Product Phase 3 — PromptOps System Design & ADRs | Approved |
-| Product Phase 3 — PromptOps Backlog, Test Design & Sprint Plan | Proposed; owner review required |
+| Product Phase 3 — PromptOps Backlog, Test Design & Sprint Plan | Approved |
 
-The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Product Phase 3 Stage 1 and Stage 2 are approved; Stage 3 backlog, test design, traceability, and Sprint 11–17 planning are proposed for owner review, and implementation has not started. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
+The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Product Phase 3 Stages 1–3 are approved; Sprint 11–17 implementation is authorized but has not started. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
