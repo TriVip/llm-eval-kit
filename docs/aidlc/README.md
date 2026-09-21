@@ -57,6 +57,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Product Phase 2 — Sprint 9 | Completed; PR #12 merged |
 | Product Phase 2 — Sprint 10 | Completed; PR #13 merged |
 | Product Phase 3 — PromptOps Inception & Requirements | Approved |
-| Product Phase 3 — PromptOps System Design & ADRs | Proposed; owner review required |
+| Product Phase 3 — PromptOps System Design & ADRs | Approved |
 
-The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Product Phase 3 Stage 1 is approved for local-first PromptOps experimentation; Stage 2 System Design and ADRs are proposed for owner review, and implementation has not started. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
+The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Product Phase 3 Stage 1 and Stage 2 are approved; Stage 3 backlog, test design, traceability, and sprint planning are next, and implementation has not started. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
