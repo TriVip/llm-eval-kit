@@ -4,7 +4,7 @@
 
 Sprint 10 implements UI-T038–UI-T045: accessibility, threat-model hardening, performance, CLI/SDK/API parity, browser/platform portability, production packaging, documentation, and release-candidate evidence.
 
-Status: **LOCAL RELEASE GATES PASSED; PROTECTED PR/CI EVIDENCE PENDING**.
+Status: **COMPLETED**. Protected PR #13 passed all required checks and was squash-merged as `7889afac0e881eb3756733b0da5d3aeddb228fac`.
 
 ## 2. Delivered controls
 
@@ -17,7 +17,7 @@ Status: **LOCAL RELEASE GATES PASSED; PROTECTED PR/CI EVIDENCE PENDING**.
 | UI-T042 | Playwright Chromium/Firefox workflow and Linux/macOS startup matrix added to CI |
 | UI-T043 | `studio:dev`, one-command `studio:start`, compiled-asset serving, SPA fallback, production smoke script, and CI jobs |
 | UI-T044 | README quick start plus architecture, security, limitations, release checklist, and demo commands refreshed |
-| UI-T045 | Full local release verification completed; protected PR checks remain the final phase gate |
+| UI-T045 | Full local and protected-CI release verification completed; final merge evidence recorded |
 
 ## 3. Local verification evidence
 
@@ -39,7 +39,7 @@ Status: **LOCAL RELEASE GATES PASSED; PROTECTED PR/CI EVIDENCE PENDING**.
 | Dependency audit | PASS; no known vulnerabilities |
 | Static release verification | PASS for v0.1.0 |
 
-Playwright discovered four browser tests (two flows each for Chromium and Firefox). Local browser execution is not claimed: the Playwright CDN timed out while downloading browser binaries in this environment. GitHub Actions installs the binaries and is the authoritative browser-matrix evidence. Live OpenAI/Gemini smoke remains explicitly skipped without user-supplied keys and reviewed model IDs.
+Playwright discovered four browser tests (two flows each for Chromium and Firefox). Local browser execution is not claimed because the Playwright CDN timed out while downloading browser binaries in this environment. GitHub Actions run #40 installed both browsers and passed the complete browser matrix. The same run passed Linux and macOS production startup, quality, regression, dependency-audit, and secret-scan jobs. Live OpenAI/Gemini smoke remains explicitly skipped without user-supplied keys and reviewed model IDs.
 
 ## 4. Security and compatibility assessment
 
@@ -52,4 +52,4 @@ Playwright discovered four browser tests (two flows each for Chromium and Firefo
 
 ## 5. AIDLC gate assessment
 
-Local implementation and deterministic release gates satisfy UI-T038–UI-T045. The Product Phase 2 gate remains open until the protected Sprint 10 pull request passes Linux/macOS production jobs, Chromium/Firefox workflows, the existing quality/security jobs, and is merged. After that merge, this record must be updated with the PR and merge commit before Product Phase 2 is marked complete.
+UI-T038–UI-T045 satisfy their Definition of Done. Protected CI run #40 passed Linux/macOS production jobs, Chromium/Firefox workflows, and all existing quality/security jobs. PR #13 was squash-merged as `7889afac0e881eb3756733b0da5d3aeddb228fac`; therefore Sprint 10 and the Product Phase 2 implementation gate are closed.

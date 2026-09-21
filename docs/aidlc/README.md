@@ -52,6 +52,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Post-Sprint 7 safety hotfix | Completed; PR #10 merged |
 | Product Phase 2 — Sprint 8 | Completed; PR #11 merged |
 | Product Phase 2 — Sprint 9 | Completed; PR #12 merged |
-| Product Phase 2 — Sprint 10 | Local release gates passed; protected PR/CI pending |
+| Product Phase 2 — Sprint 10 | Completed; PR #13 merged |
 
-The planned Sprint 0–5 MVP backlog is complete. Product Phase 2 now has the shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, and review workflow. Sprint 10 is implemented locally; its protected PR, browser/platform CI, and merge remain before the phase gate can close. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
+The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
