@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -779,6 +779,7 @@ export function NewRunPage() {
   const [timeoutMs, setTimeoutMs] = useState("");
   const [maxRetries, setMaxRetries] = useState("");
   const [plan, setPlan] = useState<Awaited<ReturnType<typeof planRun>>>();
+  const planErrorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scenario === undefined) return;
@@ -850,6 +851,9 @@ export function NewRunPage() {
     },
     onSuccess: ({ runId }) => navigate(`/runs/${runId}`),
   });
+  useEffect(() => {
+    if (planMutation.isError) planErrorRef.current?.focus();
+  }, [planMutation.isError]);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     planMutation.mutate();
@@ -1015,7 +1019,7 @@ export function NewRunPage() {
           </label>
         </fieldset>
         {planMutation.isError && (
-          <div className="form-error" role="alert">
+          <div className="form-error" role="alert" tabIndex={-1} ref={planErrorRef}>
             Validation failed. Review the registered selections and filters.
           </div>
         )}
@@ -1061,6 +1065,10 @@ export function LiveRunPage() {
   const [progress, setProgress] = useState({ selected: 0, running: 0, completed: 0 });
   const [connection, setConnection] = useState<"CONNECTED" | "DISCONNECTED">("CONNECTED");
   const [connectionAttempt, setConnectionAttempt] = useState(0);
+  const pendingProgress = useRef<
+    { selected: number; running: number; completed: number } | undefined
+  >(undefined);
+  const progressFrame = useRef<number | undefined>(undefined);
   const run = useQuery({
     queryKey: ["run", runId],
     queryFn: () => getRun(runId),
@@ -1088,23 +1096,36 @@ export function LiveRunPage() {
     },
     onSuccess: (snapshot) => queryClient.setQueryData(["run", runId], snapshot),
   });
-  useEffect(
-    () =>
-      subscribeToRun(
-        runId,
-        (event) => {
-          setProgress({
-            selected: event.progress.selected,
-            running: event.progress.running,
-            completed: event.progress.completed,
-          });
-          if (["run.completed", "run.failed", "snapshot.required"].includes(event.type))
-            void queryClient.invalidateQueries({ queryKey: ["run", runId] });
-        },
-        setConnection,
-      ),
-    [connectionAttempt, queryClient, runId],
-  );
+  useEffect(() => {
+    const scheduleProgress = (next: { selected: number; running: number; completed: number }) => {
+      pendingProgress.current = next;
+      if (progressFrame.current !== undefined) return;
+      progressFrame.current = window.requestAnimationFrame(() => {
+        if (pendingProgress.current !== undefined) setProgress(pendingProgress.current);
+        pendingProgress.current = undefined;
+        progressFrame.current = undefined;
+      });
+    };
+    const unsubscribe = subscribeToRun(
+      runId,
+      (event) => {
+        scheduleProgress({
+          selected: event.progress.selected,
+          running: event.progress.running,
+          completed: event.progress.completed,
+        });
+        if (["run.completed", "run.failed", "snapshot.required"].includes(event.type))
+          void queryClient.invalidateQueries({ queryKey: ["run", runId] });
+      },
+      setConnection,
+    );
+    return () => {
+      unsubscribe();
+      if (progressFrame.current !== undefined) window.cancelAnimationFrame(progressFrame.current);
+      progressFrame.current = undefined;
+      pendingProgress.current = undefined;
+    };
+  }, [connectionAttempt, queryClient, runId]);
   if (run.isPending) return <LoadingState label="Connecting to run" />;
   if (run.isError) return <NotFoundPage title="Run not found" />;
   const snapshot = run.data;

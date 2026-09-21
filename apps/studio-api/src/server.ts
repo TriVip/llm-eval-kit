@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { extname, join, resolve } from "node:path";
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 
@@ -20,6 +20,7 @@ import { ArtifactIndex } from "./artifact-index.js";
 import { BaselinePromotionError, BaselineStore } from "./baseline-store.js";
 import { ProjectRegistry } from "./project-registry.js";
 import { RunRegistry } from "./run-registry.js";
+import { canonicalRoot, containedFile } from "./safe-path.js";
 
 export type StudioServerOptions = {
   workspaceRoot: string;
@@ -29,7 +30,21 @@ export type StudioServerOptions = {
   origin?: string;
   allowedHosts?: string[];
   environment?: Readonly<Record<string, string | undefined>>;
+  productionAssetsRoot?: string;
 };
+
+const productionAssetExtensions = new Set([".css", ".js", ".map", ".svg", ".png", ".ico"]);
+
+function productionContentType(path: string): string {
+  const extension = extname(path);
+  if (extension === ".css") return "text/css; charset=utf-8";
+  if (extension === ".js") return "text/javascript; charset=utf-8";
+  if (extension === ".map") return "application/json; charset=utf-8";
+  if (extension === ".svg") return "image/svg+xml";
+  if (extension === ".png") return "image/png";
+  if (extension === ".ico") return "image/x-icon";
+  return "application/octet-stream";
+}
 
 function cookieValue(header: string | undefined, name: string): string | undefined {
   return header
@@ -103,6 +118,10 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
     ],
     ...(options.environment === undefined ? {} : { environment: options.environment }),
   });
+  const productionAssetsRoot =
+    options.productionAssetsRoot === undefined
+      ? undefined
+      : await canonicalRoot(options.productionAssetsRoot);
   let artifacts = await ArtifactIndex.create(options.reportRoot);
   const baselines = await BaselineStore.create(
     options.baselineRoot ?? resolve(options.reportRoot, "baselines"),
@@ -154,21 +173,45 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
     }
   });
 
-  server.addHook("onSend", async (_request, reply, payload) => {
+  server.addHook("onSend", async (request, reply, payload) => {
     reply
       .header("X-Content-Type-Options", "nosniff")
       .header("Referrer-Policy", "no-referrer")
       .header("X-Frame-Options", "DENY")
+      .header("Cross-Origin-Resource-Policy", "same-origin")
+      .header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
       .header(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'",
       );
+    if (request.url.startsWith("/api/")) reply.header("Cache-Control", "no-store");
     return payload;
   });
 
-  server.setNotFoundHandler((request, reply) =>
-    problem(reply, request, 404, "NOT_FOUND", "Not found", "The requested resource was not found."),
-  );
+  server.setNotFoundHandler(async (request, reply) => {
+    if (
+      productionAssetsRoot !== undefined &&
+      request.method === "GET" &&
+      !request.url.startsWith("/api/") &&
+      !request.url.startsWith("/assets/") &&
+      request.headers.accept?.includes("text/html") === true
+    ) {
+      const indexPath = await containedFile(
+        productionAssetsRoot,
+        join(productionAssetsRoot, "index.html"),
+        new Set([".html"]),
+      );
+      return reply.type("text/html; charset=utf-8").send(await readFile(indexPath, "utf8"));
+    }
+    return problem(
+      reply,
+      request,
+      404,
+      "NOT_FOUND",
+      "Not found",
+      "The requested resource was not found.",
+    );
+  });
   server.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error, requestId: request.id }, "Studio request failed");
     return problem(
@@ -182,6 +225,35 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
   });
 
   server.get("/health", async () => ({ status: "ok" }));
+  server.get<{ Params: { file: string } }>("/assets/:file", async (request, reply) => {
+    if (productionAssetsRoot === undefined || !/^[A-Za-z0-9._-]+$/.test(request.params.file)) {
+      return problem(
+        reply,
+        request,
+        404,
+        "ASSET_NOT_FOUND",
+        "Not found",
+        "The requested production asset was not found.",
+      );
+    }
+    try {
+      const path = await containedFile(
+        productionAssetsRoot,
+        join(productionAssetsRoot, "assets", request.params.file),
+        productionAssetExtensions,
+      );
+      return reply.type(productionContentType(path)).send(await readFile(path));
+    } catch {
+      return problem(
+        reply,
+        request,
+        404,
+        "ASSET_NOT_FOUND",
+        "Not found",
+        "The requested production asset was not found.",
+      );
+    }
+  });
   server.get("/api/v1/bootstrap", async (_request, reply) => {
     reply.header("Set-Cookie", `llmeval_session=${sessionId}; HttpOnly; SameSite=Strict; Path=/`);
     const projects = registry.list();

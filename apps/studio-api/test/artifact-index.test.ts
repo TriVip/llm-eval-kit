@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -126,5 +126,17 @@ describe("ArtifactIndex", () => {
       join(runDirectory, "logs.ndjson"),
     );
     await expect(index.file("artifact-missing", "html-report")).resolves.toBeUndefined();
+  });
+
+  it("rejects an allowlisted filename when its symlink escapes the report root", async () => {
+    const root = join(tmpdir(), `studio-reports-${crypto.randomUUID()}`);
+    const runDirectory = join(root, "run");
+    const outside = join(tmpdir(), `outside-report-${crypto.randomUUID()}.html`);
+    await mkdir(runDirectory, { recursive: true });
+    await writeFile(join(runDirectory, "run.json"), JSON.stringify(artifact("symlink-run")));
+    await writeFile(outside, "sensitive outside content");
+    await symlink(outside, join(runDirectory, "report.html"));
+    const index = await ArtifactIndex.create(root);
+    await expect(index.file(index.list()[0]!.id, "html-report")).resolves.toBeUndefined();
   });
 });

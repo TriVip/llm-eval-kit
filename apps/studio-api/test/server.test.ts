@@ -32,6 +32,72 @@ afterEach(async () => {
 });
 
 describe("Studio API security and read endpoints", () => {
+  it("serves bounded production assets and SPA routes from one loopback origin", async () => {
+    const reportRoot = join(tmpdir(), `studio-api-production-${crypto.randomUUID()}`);
+    const assetsRoot = join(tmpdir(), `studio-assets-${crypto.randomUUID()}`);
+    await mkdir(join(assetsRoot, "assets"), { recursive: true });
+    await mkdir(reportRoot, { recursive: true });
+    await writeFile(
+      join(assetsRoot, "index.html"),
+      "<!doctype html><main>Studio production</main>",
+    );
+    await writeFile(join(assetsRoot, "assets", "index-safe.js"), "globalThis.__studio=true;\n");
+    await writeFile(join(assetsRoot, "assets", "index-safe.css"), "body{color:CanvasText}\n");
+    const instance = await buildStudioServer({
+      workspaceRoot: resolve("."),
+      reportRoot,
+      productionAssetsRoot: assetsRoot,
+      origin: "http://127.0.0.1:4317",
+      allowedHosts: ["127.0.0.1:4317"],
+    });
+    servers.push(instance);
+    const headers = { host: "127.0.0.1:4317", accept: "text/html" };
+    const index = await instance.inject({ method: "GET", url: "/", headers });
+    const route = await instance.inject({ method: "GET", url: "/compare", headers });
+    const asset = await instance.inject({
+      method: "GET",
+      url: "/assets/index-safe.js",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const stylesheet = await instance.inject({
+      method: "GET",
+      url: "/assets/index-safe.css",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const missingAsset = await instance.inject({
+      method: "GET",
+      url: "/assets/missing.js",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const missingApi = await instance.inject({
+      method: "GET",
+      url: "/api/v1/missing",
+      headers,
+    });
+    const nonHtmlRoute = await instance.inject({
+      method: "GET",
+      url: "/compare",
+      headers: { host: "127.0.0.1:4317", accept: "application/json" },
+    });
+    const invalidAssetName = await instance.inject({
+      method: "GET",
+      url: "/assets/unsafe%24name.js",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(index.body).toContain("Studio production");
+    expect(route.body).toBe(index.body);
+    expect(index.headers["content-security-policy"]).toContain("default-src 'self'");
+    expect(index.headers["permissions-policy"]).toContain("camera=()");
+    expect(index.headers["cross-origin-resource-policy"]).toBe("same-origin");
+    expect(asset.headers["content-type"]).toContain("text/javascript");
+    expect(asset.body).toContain("__studio");
+    expect(stylesheet.headers["content-type"]).toContain("text/css");
+    expect(missingAsset.json().code).toBe("ASSET_NOT_FOUND");
+    expect(invalidAssetName.json().code).toBe("ASSET_NOT_FOUND");
+    expect(missingApi.json().code).toBe("NOT_FOUND");
+    expect(nonHtmlRoute.json().code).toBe("NOT_FOUND");
+  });
+
   it("uses secure loopback defaults and accepts both default loopback hosts", async () => {
     const reportRoot = join(tmpdir(), `studio-api-defaults-${crypto.randomUUID()}`);
     await mkdir(reportRoot, { recursive: true });
@@ -58,6 +124,12 @@ describe("Studio API security and read endpoints", () => {
     expect(localhost.statusCode).toBe(200);
     expect(missingHost.statusCode).toBe(403);
     expect(missingHost.json().code).toBe("HOST_NOT_ALLOWED");
+    const missingAssets = await instance.inject({
+      method: "GET",
+      url: "/assets/index.js",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(missingAssets.json().code).toBe("ASSET_NOT_FOUND");
   });
 
   it("returns safe contract-valid bootstrap and project data", async () => {
@@ -71,6 +143,7 @@ describe("Studio API security and read endpoints", () => {
     expect(studioBootstrapResponseSchema.parse(response.json()).projects[0]?.id).toBe(
       "ecommerce-support",
     );
+    expect(response.headers["cache-control"]).toBe("no-store");
     expect(response.body).not.toContain("canary-do-not-leak");
     expect(response.body).not.toContain(resolve("."));
     expect(response.headers["set-cookie"]).toContain("HttpOnly");

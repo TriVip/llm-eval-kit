@@ -11,6 +11,12 @@
 - [x] 500-case internal benchmark and one-fault result-integrity test
 - [x] 30-sample deterministic judge calibration gate
 - [x] Dependency audit and secret scan workflows
+- [x] Local Studio uses the shared SDK and preserves CLI/API artifact semantics
+- [x] One-command production packaging and loopback startup verification
+- [x] Automated accessibility checks, keyboard workflow, focus recovery and reduced-motion rules
+- [x] Host/Origin/CSRF, containment, symlink, XSS, redaction and baseline-conflict threat tests
+- [x] 500-case explorer and progress-burst performance checks
+- [x] Chromium/Firefox browser workflow and Linux/macOS startup CI jobs
 - [ ] Live OpenAI smoke with repository secret and model variable
 - [ ] Live Gemini smoke with repository secret and model variable
 
