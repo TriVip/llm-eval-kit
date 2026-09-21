@@ -29,7 +29,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 23. [Post-Sprint 7 Safety Hotfix Record](AIDLC_P2_04_Post_Sprint_7_Safety_Hotfix_Record.md) — report redaction, concurrency handoff, supported TypeScript pin, and regression evidence.
 24. [Product Phase 2 — Sprint 8 Execution Record](AIDLC_P2_04_UI_Sprint_8_Execution_Record.md) — controlled mock execution, safe progress, and canonical investigation evidence.
 25. [Product Phase 2 — Sprint 9 Execution Record](AIDLC_P2_04_UI_Sprint_9_Execution_Record.md) — cancellation, comparison, guarded baseline promotion, review, downloads, and recovery evidence.
-26. [Product Phase 2 — Sprint 10 Execution Record](AIDLC_P2_04_UI_Sprint_10_Execution_Record.md) — accessibility, security, performance, parity, production packaging, portability, and release-candidate evidence.
+26. [Product Phase 2 — Sprint 10 Execution Record](AIDLC_P2_04_UI_Sprint_10_Execution_Record.md) — accessibility, security, performance, parity, production packaging, portability, and release-candidate evidence.\n27. [Product Phase 3 — PromptOps Inception & Requirements](AIDLC_P3_01_PromptOps_Inception_and_Requirements.md) — prompt experimentation vision, scope, requirements, acceptance criteria, ROI, and risk baseline.
 
 ## Current delivery status
 
@@ -52,6 +52,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Post-Sprint 7 safety hotfix | Completed; PR #10 merged |
 | Product Phase 2 — Sprint 8 | Completed; PR #11 merged |
 | Product Phase 2 — Sprint 9 | Completed; PR #12 merged |
-| Product Phase 2 — Sprint 10 | Completed; PR #13 merged |
+| Product Phase 2 — Sprint 10 | Completed; PR #13 merged |\n| Product Phase 3 — PromptOps Inception & Requirements | In review |
 
 The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
