@@ -1,0 +1,12 @@
+{
+  "canonicalEvidence": {
+    "artifactId": "run-baseline-1",
+    "status": "PASSED",
+    "promptHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "tamperedEvidence": {
+    "artifactId": "run-baseline-1",
+    "status": "QUALITY_FAILED",
+    "promptHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

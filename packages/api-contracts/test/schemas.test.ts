@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  experimentPlanSchema,
+  humanDecisionRequestSchema,
+  promptCreateRequestSchema,
+  promptOpsEventSchema,
+  promptOpsProblemSchema,
   runSessionSnapshotSchema,
   safeRunEventSchema,
   studioProblemSchema,
@@ -102,5 +107,100 @@ describe("Studio API contracts", () => {
         artifactId: "artifact-12345678",
       }).state,
     ).toBe("CANCELLED");
+  });
+});
+
+describe("PromptOps API contracts", () => {
+  const hash = "a".repeat(64);
+
+  it("accepts a bounded versioned plan and rejects unrecognized fields", () => {
+    const plan = {
+      apiVersion: "1.0",
+      schemaVersion: "1.0",
+      experimentId: "experiment-1",
+      projectId: "project",
+      suiteId: "suite",
+      variants: ["baseline", "candidate"].map((variantId, index) => ({
+        variantId,
+        label: variantId,
+        prompt: { promptId: "support", version: index + 1, hash },
+        targetId: "mock",
+        targetHash: hash,
+      })),
+      repetitions: 3,
+      policy: {
+        version: "1.0",
+        baselineVariantId: "baseline",
+        minimumValidRepetitions: 3,
+        minimumMeanPassRate: 0.9,
+        maximumPassRateRegressionPoints: 0,
+        minimumVerdictAgreement: 0.95,
+        maximumFlakyCaseRate: 0.05,
+        blockOnCriticalRegression: true,
+        requireCompleteUsageForLatencyGate: false,
+        requireCompleteCostForCostGate: false,
+      },
+      compatibilityHash: hash,
+      planHash: hash,
+    };
+    expect(experimentPlanSchema.parse(plan).variants).toHaveLength(2);
+    expect(
+      experimentPlanSchema.safeParse({ ...plan, databasePath: "/tmp/prompts.db" }).success,
+    ).toBe(false);
+    expect(experimentPlanSchema.safeParse({ ...plan, repetitions: 11 }).success).toBe(false);
+  });
+
+  it("bounds prompt and decision text and requires a rationale", () => {
+    expect(
+      promptCreateRequestSchema.safeParse({
+        apiVersion: "1.0",
+        promptId: "support",
+        displayName: "Support",
+        template: {
+          schemaVersion: "1.0",
+          user: "{{input.user}}",
+          declaredVariables: [],
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      humanDecisionRequestSchema.safeParse({
+        apiVersion: "1.0",
+        action: "ACCEPT_RECOMMENDATION",
+        outcome: "KEEP_BASELINE",
+        recommendationId: "recommendation-1",
+        evidenceHash: hash,
+        reviewerLabel: "Local reviewer",
+        rationale: "   ",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps events and problems versioned, strict, and free of raw evidence fields", () => {
+    expect(
+      promptOpsEventSchema.safeParse({
+        apiVersion: "1.0",
+        id: 1,
+        experimentId: "experiment-1",
+        correlationId: "experiment-1-cell-1",
+        timestamp: "2026-09-22T00:00:00.000Z",
+        type: "cell.completed",
+        state: "RUNNING",
+        completedCells: 1,
+        totalCells: 6,
+        rawResponse: "secret",
+      }).success,
+    ).toBe(false);
+    expect(
+      promptOpsProblemSchema.parse({
+        apiVersion: "1.0",
+        type: "about:blank",
+        title: "Invalid prompt",
+        status: 400,
+        code: "PROMPT_TEMPLATE_INVALID",
+        detail: "The prompt template is invalid.",
+        correlationId: "request-1",
+      }).code,
+    ).toBe("PROMPT_TEMPLATE_INVALID");
   });
 });

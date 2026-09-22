@@ -31,6 +31,7 @@ The approved product, architecture, backlog, test strategy, traceability matrix,
 - [Product Phase 3 PromptOps inception](docs/aidlc/AIDLC_P3_01_PromptOps_Inception_and_Requirements.md)
 - [Product Phase 3 PromptOps system design](docs/aidlc/AIDLC_P3_02_PromptOps_System_Design.md)
 - [Product Phase 3 PromptOps backlog and sprint plan](docs/aidlc/AIDLC_P3_03_PromptOps_Backlog_and_Sprint_Plan.md)
+- [Product Phase 3 Sprint 11 execution record](docs/aidlc/AIDLC_P3_04_PromptOps_Sprint_11_Execution_Record.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Known limitations](docs/LIMITATIONS.md)
 - [ROI model](docs/ROI.md)
@@ -56,7 +57,7 @@ node apps/cli/dist/index.js run \
   --fixtures examples/ecommerce-support/fixtures.json
 ```
 
-The command evaluates 64 reviewed cases and writes terminal, canonical JSON, human-review and self-contained HTML evidence under `reports/<run-id>/`. It should take well under ten minutes from a clean checkout on Node.js 22.
+The command evaluates 64 reviewed cases and writes terminal, canonical JSON, human-review and self-contained HTML evidence under `reports/<run-id>/`. It should take well under ten minutes from a clean checkout on Node.js 22.13 or newer.
 
 Run a targeted selection by repeating or comma-separating filters:
 

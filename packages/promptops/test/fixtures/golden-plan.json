@@ -1,0 +1,46 @@
+{
+  "apiVersion": "1.0",
+  "schemaVersion": "1.0",
+  "experimentId": "support-prompt-v2",
+  "projectId": "ecommerce-support",
+  "suiteId": "main",
+  "variants": [
+    {
+      "variantId": "baseline",
+      "label": "Baseline",
+      "prompt": {
+        "promptId": "support",
+        "version": 1,
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "targetId": "mock",
+      "targetHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "variantId": "candidate",
+      "label": "Candidate",
+      "prompt": {
+        "promptId": "support",
+        "version": 2,
+        "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "targetId": "mock",
+      "targetHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "repetitions": 3,
+  "policy": {
+    "version": "1.0",
+    "baselineVariantId": "baseline",
+    "minimumValidRepetitions": 3,
+    "minimumMeanPassRate": 0.9,
+    "maximumPassRateRegressionPoints": 0,
+    "minimumVerdictAgreement": 0.95,
+    "maximumFlakyCaseRate": 0.05,
+    "blockOnCriticalRegression": true,
+    "requireCompleteUsageForLatencyGate": false,
+    "requireCompleteCostForCostGate": false
+  },
+  "compatibilityHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "planHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}
