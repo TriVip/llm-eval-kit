@@ -10,6 +10,7 @@ import type {
   EvaluationSuite,
   Evaluator,
   GenerationRequest,
+  GenerationRequestRenderer,
   LlmProvider,
   ProjectConfig,
   RunArtifact,
@@ -32,6 +33,7 @@ export type RunEvaluationInput = {
   provider: LlmProvider;
   evaluators: EvaluatorRegistry;
   scoring: ScoringEngine;
+  requestRenderer?: GenerationRequestRenderer;
   filters?: CaseFilters;
   signal?: AbortSignal;
 };
@@ -185,7 +187,11 @@ function providerErrorCase(
 function generationRequest(
   config: ProjectConfig,
   suiteCase: EvaluationSuite["cases"][number],
+  requestRenderer?: GenerationRequestRenderer,
 ): GenerationRequest {
+  if (requestRenderer !== undefined) {
+    return { ...requestRenderer.render(suiteCase), target: config.target };
+  }
   return {
     user: suiteCase.input.user,
     variables: suiteCase.input.variables,
@@ -212,6 +218,9 @@ export async function runEvaluationSuite(
     startedAt: startedAt.toISOString(),
     configHash: hash(input.config),
     suiteHash: hash(input.suite),
+    ...(input.requestRenderer === undefined
+      ? {}
+      : { promptHash: input.requestRenderer.promptHash }),
     target: input.config.target,
   };
   const selectedSuite = filterEvaluationSuite(input.suite, input.filters);
@@ -261,7 +270,7 @@ export async function runEvaluationSuite(
             });
             try {
               const result = await input.provider.generate(
-                generationRequest(input.config, suiteCase),
+                generationRequest(input.config, suiteCase, input.requestRenderer),
                 { runId, caseId: suiteCase.id, attemptId, signal },
               );
               await emitLog(dependencies.logEvent, {

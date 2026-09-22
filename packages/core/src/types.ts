@@ -106,6 +106,13 @@ export type GenerationRequest = {
   target: ModelTarget;
 };
 
+export type GenerationRequestContent = Omit<GenerationRequest, "target">;
+
+export interface GenerationRequestRenderer {
+  readonly promptHash: string;
+  render(testCase: EvaluationCase): GenerationRequestContent;
+}
+
 export type ProviderExecutionContext = {
   runId: string;
   caseId: string;

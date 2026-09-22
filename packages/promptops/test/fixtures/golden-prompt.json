@@ -1,0 +1,10 @@
+{
+  "template": {
+    "schemaVersion": "1.0",
+    "system": "You are a safe support assistant.\r\nUse the supplied context.",
+    "user": "{{input.user}}\r\nLocale: {{variables.locale}}",
+    "declaredVariables": ["locale"]
+  },
+  "expectedCanonical": "{\"declaredVariables\":[\"locale\"],\"schemaVersion\":\"1.0\",\"system\":\"You are a safe support assistant.\\nUse the supplied context.\",\"user\":\"{{input.user}}\\nLocale: {{variables.locale}}\"}",
+  "expectedHash": "d234cf68b6434100aa6ee99b35a8cbbd44b9a4243713803f480d1783307a6d55"
+}
