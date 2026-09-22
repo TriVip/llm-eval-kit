@@ -4,7 +4,7 @@
 > **Product increment:** Prompt Experimentation & Decision Support  
 > **AIDLC stage:** 4 — Implementation  
 > **Sprint:** 11 — Prompt domain and compatibility foundation  
-> **Status:** IMPLEMENTED — PROTECTED PR VALIDATION PENDING  
+> **Status:** COMPLETED — PROTECTED CI VERIFIED
 > **Date:** 2026-09-22  
 > **Baseline:** Product Phase 3 Stage 3 merge `29b5bc22db8c44dbbfce4688a1e4f61f187e4cf9`
 
@@ -65,4 +65,4 @@ The production web bundle remains 478.80 kB JavaScript / 145.94 kB gzip and 10.9
 
 ## 6. Gate status
 
-P3-T001–P3-T008 are implemented and locally verified. Sprint 11 becomes `COMPLETED` only after the protected pull request passes CI and is merged. Sprint 12 is not authorized to start by this execution record alone.
+P3-T001–P3-T008 satisfy their Definition of Done. Implementation commit `9c2f6c06668d4fee489c4c05524c0f3f63b9c37f` passed protected PR #19 CI run #58; this closing record is included in the same protected merge. Sprint 11 is `COMPLETED`. Sprint 12 has not started.
