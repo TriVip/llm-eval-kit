@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@llm-eval-kit/api-contracts": "workspace:*",
-    "@tanstack/react-query": "^5.90.2",
+    "@tanstack/react-query": "^5.103.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.1",
