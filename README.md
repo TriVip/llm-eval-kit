@@ -32,6 +32,7 @@ The approved product, architecture, backlog, test strategy, traceability matrix,
 - [Product Phase 3 PromptOps system design](docs/aidlc/AIDLC_P3_02_PromptOps_System_Design.md)
 - [Product Phase 3 PromptOps backlog and sprint plan](docs/aidlc/AIDLC_P3_03_PromptOps_Backlog_and_Sprint_Plan.md)
 - [Product Phase 3 Sprint 11 execution record](docs/aidlc/AIDLC_P3_04_PromptOps_Sprint_11_Execution_Record.md)
+- [Product Phase 3 Sprint 12 execution record](docs/aidlc/AIDLC_P3_04_PromptOps_Sprint_12_Execution_Record.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Known limitations](docs/LIMITATIONS.md)
 - [ROI model](docs/ROI.md)

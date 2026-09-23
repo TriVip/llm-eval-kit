@@ -534,7 +534,7 @@ JSON columns contain versioned, schema-validated canonical JSON. Frequently quer
 6. run `PRAGMA foreign_key_check` and migration assertions;
 7. commit; or rollback and fail startup with a safe code.
 
-Migrations are forward-only in normal startup. Before the first migration of an existing file, create an atomic local backup. Stage 3 must specify the recovery command and retention limit. Tests cover fresh, upgrade, interrupted, checksum mismatch, and corrupt database cases.
+Migrations are forward-only in normal startup. Before the first pending migration of an existing file, create an atomic local backup after checkpointing WAL. Retain the newest three backups by default. Recovery is never automatic: stop all writers, preserve the failed database, verify a retained backup, copy it to a temporary sibling path, and atomically rename that copy to `.llm-eval-kit/promptops.sqlite` before restarting. Tests cover fresh, upgrade, interrupted, checksum mismatch, backup retention, and corrupt database cases.
 
 ## 16. Application ports
 

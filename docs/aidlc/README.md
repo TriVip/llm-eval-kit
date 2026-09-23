@@ -37,6 +37,7 @@ This directory is the source of truth for the product, architecture, delivery pl
 31. [Product Phase 3 — PromptOps Test Strategy](AIDLC_P3_03_PromptOps_Test_Strategy_and_Specifications.md) — approved risk strategy and 106 executable test specifications.
 32. [Product Phase 3 — PromptOps Traceability Matrix](AIDLC_P3_03_PromptOps_Traceability_Matrix.md) — approved requirement/story/task/test/ADR coverage and sprint evidence map.
 33. [Product Phase 3 — Sprint 11 Execution Record](AIDLC_P3_04_PromptOps_Sprint_11_Execution_Record.md) — PromptOps domain, canonical hashing, safe rendering, core compatibility, API contracts, and adversarial fixture evidence.
+34. [Product Phase 3 — Sprint 12 Execution Record](AIDLC_P3_04_PromptOps_Sprint_12_Execution_Record.md) — SQLite migrations/recovery, immutable prompt lifecycle, shared SDK, CLI, and secure API evidence.
 
 ## Current delivery status
 
@@ -64,5 +65,6 @@ This directory is the source of truth for the product, architecture, delivery pl
 | Product Phase 3 — PromptOps System Design & ADRs | Approved |
 | Product Phase 3 — PromptOps Backlog, Test Design & Sprint Plan | Approved |
 | Product Phase 3 — Sprint 11 | Completed; PR #19 CI run #58 passed |
+| Product Phase 3 — Sprint 12 | Implemented; human migration review required |
 
-The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Product Phase 3 Stages 1–3 are approved and Sprint 11 is complete through protected PR #19; Sprint 12–17 have not started. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
+The planned Sprint 0–5 MVP backlog and Product Phase 2 UI backlog are complete. The project now has a shared SDK plus a secure Studio execution, investigation, cancellation, comparison, promotion, review, production-packaging, and browser-verified workflow. Product Phase 2 closed through protected PR #13 and CI run #40. Product Phase 3 Stages 1–3 are approved, Sprint 11 is complete through protected PR #19, and Sprint 12 is implemented pending its mandatory migration review; Sprints 13–17 have not started. Version 0.1.0 remains the portfolio release candidate; live provider smoke remains opt-in and must not be confused with deterministic mock CI evidence.
