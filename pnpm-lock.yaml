@@ -38,6 +38,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@llm-eval-kit/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts
       '@llm-eval-kit/artifacts':
         specifier: workspace:*
         version: link:../../packages/artifacts
@@ -47,6 +50,12 @@ importers:
       '@llm-eval-kit/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@llm-eval-kit/promptops':
+        specifier: workspace:*
+        version: link:../../packages/promptops
+      '@llm-eval-kit/promptops-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/promptops-sqlite
       '@llm-eval-kit/providers':
         specifier: workspace:*
         version: link:../../packages/providers
@@ -74,6 +83,12 @@ importers:
       '@llm-eval-kit/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@llm-eval-kit/promptops':
+        specifier: workspace:*
+        version: link:../../packages/promptops
+      '@llm-eval-kit/promptops-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/promptops-sqlite
       '@llm-eval-kit/providers':
         specifier: workspace:*
         version: link:../../packages/providers
@@ -206,6 +221,9 @@ importers:
       '@llm-eval-kit/evaluators':
         specifier: workspace:*
         version: link:../evaluators
+      '@llm-eval-kit/promptops':
+        specifier: workspace:*
+        version: link:../promptops
       '@llm-eval-kit/providers':
         specifier: workspace:*
         version: link:../providers

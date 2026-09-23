@@ -14,6 +14,38 @@ export type PromptTemplate = {
   declaredVariables: string[];
 };
 
+export type Prompt = {
+  promptId: PromptId;
+  displayName: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PromptSummary = Prompt & {
+  draftRevision?: number;
+  latestVersion?: PromptVersionNumber;
+};
+
+export type PromptDetails = Prompt & {
+  draft?: PromptDraft;
+  versions: PublishedPromptVersion[];
+};
+
+export type CreatePromptInput = {
+  promptId: PromptId;
+  displayName: string;
+  note?: string;
+  template: PromptTemplate;
+};
+
+export type SavePromptDraftInput = {
+  draftId: PromptDraftId;
+  expectedRevision: number;
+  note?: string;
+  template: PromptTemplate;
+};
+
 export type PromptDraft = {
   draftId: PromptDraftId;
   promptId: PromptId;

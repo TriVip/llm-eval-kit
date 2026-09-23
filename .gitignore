@@ -5,6 +5,7 @@ coverage/
 playwright-report/
 test-results/
 reports/
+.llm-eval-kit/
 .env
 .env.*
 !.env.example

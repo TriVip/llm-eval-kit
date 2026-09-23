@@ -4,6 +4,9 @@ import {
   experimentPlanSchema,
   humanDecisionRequestSchema,
   promptCreateRequestSchema,
+  promptDraftCreateRequestSchema,
+  promptDraftSaveRequestSchema,
+  promptPublishRequestSchema,
   promptOpsEventSchema,
   promptOpsProblemSchema,
   runSessionSnapshotSchema,
@@ -163,6 +166,27 @@ describe("PromptOps API contracts", () => {
         },
       }).success,
     ).toBe(true);
+    expect(
+      promptDraftSaveRequestSchema.safeParse({
+        apiVersion: "1.0",
+        expectedRevision: 0,
+        template: {
+          schemaVersion: "1.0",
+          user: "{{input.user}}",
+          declaredVariables: [],
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      promptDraftCreateRequestSchema.safeParse({
+        apiVersion: "1.0",
+        parentVersion: 1,
+        databasePath: "/tmp/forbidden.sqlite",
+      }).success,
+    ).toBe(false);
+    expect(
+      promptPublishRequestSchema.safeParse({ apiVersion: "1.0", expectedRevision: -1 }).success,
+    ).toBe(false);
     expect(
       humanDecisionRequestSchema.safeParse({
         apiVersion: "1.0",

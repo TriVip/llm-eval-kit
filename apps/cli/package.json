@@ -7,10 +7,13 @@
     "llmeval": "./dist/index.js"
   },
   "dependencies": {
+    "@llm-eval-kit/api-contracts": "workspace:*",
     "@llm-eval-kit/artifacts": "workspace:*",
     "@llm-eval-kit/config": "workspace:*",
     "@llm-eval-kit/core": "workspace:*",
     "@llm-eval-kit/providers": "workspace:*",
+    "@llm-eval-kit/promptops": "workspace:*",
+    "@llm-eval-kit/promptops-sqlite": "workspace:*",
     "@llm-eval-kit/reporters": "workspace:*",
     "@llm-eval-kit/sdk": "workspace:*",
     "commander": "^15.0.0"

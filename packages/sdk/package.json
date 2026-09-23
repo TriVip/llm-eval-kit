@@ -13,6 +13,7 @@
     "@llm-eval-kit/artifacts": "workspace:*",
     "@llm-eval-kit/core": "workspace:*",
     "@llm-eval-kit/evaluators": "workspace:*",
+    "@llm-eval-kit/promptops": "workspace:*",
     "@llm-eval-kit/providers": "workspace:*",
     "@llm-eval-kit/scoring": "workspace:*"
   },
