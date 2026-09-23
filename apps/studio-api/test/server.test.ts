@@ -19,6 +19,7 @@ async function server(
   const instance = await buildStudioServer({
     workspaceRoot: resolve("."),
     reportRoot,
+    promptDatabasePath: `.llm-eval-kit/tests/${crypto.randomUUID()}.sqlite`,
     origin: "http://127.0.0.1:4317",
     allowedHosts: ["127.0.0.1:4317"],
     environment,
@@ -199,6 +200,152 @@ describe("Studio API security and read endpoints", () => {
     });
     expect(response.statusCode).toBe(400);
     expect(response.json().code).toBe("INVALID_RUN_REQUEST");
+  });
+
+  it("secures the persistent prompt lifecycle with CSRF, strict input, and revision conflicts", async () => {
+    const instance = await server({ OPENAI_API_KEY: "environment-secret-canary" });
+    const bootstrap = await instance.inject({
+      method: "GET",
+      url: "/api/v1/bootstrap",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    const headers = {
+      host: "127.0.0.1:4317",
+      origin: "http://127.0.0.1:4317",
+      cookie: bootstrap.headers["set-cookie"]?.split(";")[0] ?? "",
+      "x-csrf-token": bootstrap.json().csrfToken as string,
+    };
+    const payload = {
+      apiVersion: "1.0",
+      promptId: "api-support",
+      displayName: "<script>Support</script>",
+      template: {
+        schemaVersion: "1.0",
+        user: "Question: {{input.user}}",
+        declaredVariables: [],
+      },
+    };
+    const created = await instance.inject({
+      method: "POST",
+      url: "/api/v1/prompts",
+      headers,
+      payload,
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.headers["content-type"]).toContain("application/json");
+    expect(created.body).not.toContain("environment-secret-canary");
+    const draftId = created.json().draft.draftId as string;
+    const saved = await instance.inject({
+      method: "PUT",
+      url: `/api/v1/prompt-drafts/${draftId}`,
+      headers,
+      payload: {
+        apiVersion: "1.0",
+        expectedRevision: 0,
+        template: payload.template,
+        unexpected: true,
+      },
+    });
+    expect(saved.statusCode).toBe(400);
+    const validSave = await instance.inject({
+      method: "PUT",
+      url: `/api/v1/prompt-drafts/${draftId}`,
+      headers,
+      payload: { apiVersion: "1.0", expectedRevision: 0, template: payload.template },
+    });
+    expect(validSave.json().revision).toBe(1);
+    const stale = await instance.inject({
+      method: "PUT",
+      url: `/api/v1/prompt-drafts/${draftId}`,
+      headers,
+      payload: { apiVersion: "1.0", expectedRevision: 0, template: payload.template },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().code).toBe("DRAFT_REVISION_CONFLICT");
+    const published = await instance.inject({
+      method: "POST",
+      url: `/api/v1/prompt-drafts/${draftId}/publish`,
+      headers,
+      payload: { apiVersion: "1.0", expectedRevision: 1 },
+    });
+    expect(published.statusCode).toBe(201);
+    expect(published.json()).toMatchObject({ promptId: "api-support", version: 1 });
+    const shown = await instance.inject({
+      method: "GET",
+      url: "/api/v1/prompts/api-support",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(shown.json().versions).toHaveLength(1);
+    const listed = await instance.inject({
+      method: "GET",
+      url: "/api/v1/prompts?limit=1",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(listed.json().items).toEqual([
+      expect.objectContaining({ promptId: "api-support", latestVersion: 1 }),
+    ]);
+    const invalidLimit = await instance.inject({
+      method: "GET",
+      url: "/api/v1/prompts?limit=not-a-number",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(invalidLimit.statusCode).toBe(400);
+    const missing = await instance.inject({
+      method: "GET",
+      url: "/api/v1/prompts/missing",
+      headers: { host: "127.0.0.1:4317" },
+    });
+    expect(missing.statusCode).toBe(404);
+    const duplicateCreate = await instance.inject({
+      method: "POST",
+      url: "/api/v1/prompts",
+      headers,
+      payload,
+    });
+    expect(duplicateCreate.statusCode).toBe(409);
+    const invalidCreate = await instance.inject({
+      method: "POST",
+      url: "/api/v1/prompts",
+      headers,
+      payload: { ...payload, unexpected: true },
+    });
+    expect(invalidCreate.statusCode).toBe(400);
+    const invalidDraftCreate = await instance.inject({
+      method: "POST",
+      url: "/api/v1/prompts/api-support/drafts",
+      headers,
+      payload: { apiVersion: "1.0", parentVersion: 0 },
+    });
+    expect(invalidDraftCreate.statusCode).toBe(400);
+    const nextDraft = await instance.inject({
+      method: "POST",
+      url: "/api/v1/prompts/api-support/drafts",
+      headers,
+      payload: { apiVersion: "1.0", parentVersion: 1 },
+    });
+    expect(nextDraft.statusCode).toBe(201);
+    const duplicatePublish = await instance.inject({
+      method: "POST",
+      url: `/api/v1/prompt-drafts/${nextDraft.json().draftId as string}/publish`,
+      headers,
+      payload: { apiVersion: "1.0", expectedRevision: 0 },
+    });
+    expect(duplicatePublish.statusCode).toBe(409);
+    expect(duplicatePublish.json().code).toBe("PROMPT_CONTENT_ALREADY_PUBLISHED");
+    const invalidPublish = await instance.inject({
+      method: "POST",
+      url: `/api/v1/prompt-drafts/${nextDraft.json().draftId as string}/publish`,
+      headers,
+      payload: { apiVersion: "1.0", expectedRevision: -1 },
+    });
+    expect(invalidPublish.statusCode).toBe(400);
+    const missingCsrf = await instance.inject({
+      method: "POST",
+      url: "/api/v1/prompts",
+      headers: { host: "127.0.0.1:4317" },
+      payload,
+    });
+    expect(missingCsrf.json().code).toBe("CSRF_VALIDATION_FAILED");
   });
 
   it("returns typed validation, planning, and missing-run problems", async () => {

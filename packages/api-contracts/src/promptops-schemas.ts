@@ -57,6 +57,45 @@ export const promptDraftSaveRequestSchema = z
   })
   .strict();
 
+export const promptDraftCreateRequestSchema = z
+  .object({
+    apiVersion: z.literal(PROMPTOPS_API_VERSION),
+    parentVersion: z.number().int().positive().optional(),
+  })
+  .strict();
+
+export const promptPublishRequestSchema = z
+  .object({
+    apiVersion: z.literal(PROMPTOPS_API_VERSION),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const promptDraftSchema = z
+  .object({
+    draftId: identifier,
+    promptId: identifier,
+    revision: z.number().int().nonnegative(),
+    parentVersion: z.number().int().positive().optional(),
+    template: promptTemplateSchema,
+    note: boundedText.optional(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+  .strict();
+
+export const promptSummarySchema = z
+  .object({
+    promptId: identifier,
+    displayName: z.string().min(1).max(256),
+    note: boundedText.optional(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    draftRevision: z.number().int().nonnegative().optional(),
+    latestVersion: z.number().int().positive().optional(),
+  })
+  .strict();
+
 export const publishedPromptVersionSchema = z
   .object({
     apiVersion: z.literal(PROMPTOPS_API_VERSION),

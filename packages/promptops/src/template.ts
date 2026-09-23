@@ -162,10 +162,7 @@ export type PromptValidationResult = {
   referencesContext: boolean;
 };
 
-export function validatePromptTemplate(
-  template: PromptTemplate,
-  suite: PromptEvaluationSuite,
-): PromptValidationResult {
+export function validatePromptTemplateDefinition(template: PromptTemplate): PromptValidationResult {
   const parsed = parseTemplate(template);
   const placeholders = [...parsed.segments.values()].flatMap((segments) =>
     segments.flatMap((segment) => (segment.kind === "PLACEHOLDER" ? [segment.value] : [])),
@@ -188,11 +185,26 @@ export function validatePromptTemplate(
       });
     }
   }
-  const referencesContext = placeholders.some(({ kind }) => kind === "INPUT_CONTEXT");
+  return {
+    valid: parsed.errors.length === 0,
+    errors: parsed.errors,
+    referencedVariables,
+    referencesContext: placeholders.some(({ kind }) => kind === "INPUT_CONTEXT"),
+  };
+}
+
+export function validatePromptTemplate(
+  template: PromptTemplate,
+  suite: PromptEvaluationSuite,
+): PromptValidationResult {
+  const definition = validatePromptTemplateDefinition(template);
+  const errors = [...definition.errors];
+  const referencedVariables = definition.referencedVariables;
+  const referencesContext = definition.referencesContext;
   for (const testCase of suite.cases) {
     for (const variable of referencedVariables) {
       if (!(variable in testCase.input.variables)) {
-        parsed.errors.push({
+        errors.push({
           path: `cases.${testCase.id}.input.variables.${variable}`,
           code: "PROMPT_VARIABLE_MISSING",
           message: `Case ${testCase.id} is missing prompt variable: ${variable}.`,
@@ -202,7 +214,7 @@ export function validatePromptTemplate(
       }
     }
     if (referencesContext && testCase.input.context === undefined) {
-      parsed.errors.push({
+      errors.push({
         path: `cases.${testCase.id}.input.context`,
         code: "PROMPT_CONTEXT_MISSING",
         message: `Case ${testCase.id} is missing context required by the prompt.`,
@@ -211,8 +223,8 @@ export function validatePromptTemplate(
     }
   }
   return {
-    valid: parsed.errors.length === 0,
-    errors: parsed.errors,
+    valid: errors.length === 0,
+    errors,
     referencedVariables,
     referencesContext,
   };

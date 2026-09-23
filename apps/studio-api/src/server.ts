@@ -7,6 +7,11 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import {
   baselinePromotionRequestSchema,
   comparisonRequestSchema,
+  promptCreateRequestSchema,
+  promptDraftCreateRequestSchema,
+  promptDraftSaveRequestSchema,
+  promptPublishRequestSchema,
+  PROMPTOPS_API_VERSION,
   STUDIO_API_VERSION,
   studioRunRequestSchema,
   type SafeRunEvent,
@@ -14,7 +19,9 @@ import {
 } from "@llm-eval-kit/api-contracts";
 import { buildHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
 import { ConfigurationError } from "@llm-eval-kit/core";
-import { createEvaluationApplication } from "@llm-eval-kit/sdk";
+import { PromptOpsError } from "@llm-eval-kit/promptops";
+import { openPromptOpsStore } from "@llm-eval-kit/promptops-sqlite";
+import { createEvaluationApplication, createPromptApplication } from "@llm-eval-kit/sdk";
 
 import { ArtifactIndex } from "./artifact-index.js";
 import { BaselinePromotionError, BaselineStore } from "./baseline-store.js";
@@ -31,6 +38,7 @@ export type StudioServerOptions = {
   allowedHosts?: string[];
   environment?: Readonly<Record<string, string | undefined>>;
   productionAssetsRoot?: string;
+  promptDatabasePath?: string;
 };
 
 const productionAssetExtensions = new Set([".css", ".js", ".map", ".svg", ".png", ".ico"]);
@@ -60,7 +68,7 @@ function problem(
   code: string,
   title: string,
   detail: string,
-  fieldErrors?: Array<{ path: string; message: string }>,
+  fieldErrors?: Array<{ path: string; message: string; code?: string }>,
   currentHash?: string,
 ) {
   return reply
@@ -77,6 +85,42 @@ function problem(
       ...(fieldErrors === undefined ? {} : { fieldErrors }),
       ...(currentHash === undefined ? {} : { currentHash }),
     });
+}
+
+function promptProblem(reply: FastifyReply, request: FastifyRequest, error: unknown) {
+  if (!(error instanceof PromptOpsError)) {
+    return problem(
+      reply,
+      request,
+      500,
+      "PROMPT_OPERATION_FAILED",
+      "Prompt operation failed",
+      "The prompt operation could not be completed.",
+    );
+  }
+  const conflictCodes = new Set([
+    "PROMPT_ALREADY_EXISTS",
+    "PROMPT_CONTENT_ALREADY_PUBLISHED",
+    "DRAFT_REVISION_CONFLICT",
+  ]);
+  const notFoundCodes = new Set(["PROMPT_NOT_FOUND", "PROMPT_DRAFT_NOT_FOUND"]);
+  const unavailableCodes = new Set(["DATABASE_BUSY", "DATABASE_CORRUPT", "MIGRATION_FAILED"]);
+  const status = conflictCodes.has(error.code)
+    ? 409
+    : notFoundCodes.has(error.code)
+      ? 404
+      : unavailableCodes.has(error.code)
+        ? 503
+        : 400;
+  return problem(
+    reply,
+    request,
+    status,
+    error.code,
+    status === 409 ? "Prompt conflict" : status === 404 ? "Prompt not found" : "Invalid prompt",
+    error.safeMessage,
+    error.fieldErrors.map(({ path, code, message }) => ({ path, code, message })),
+  );
 }
 
 function parseRunRequest(
@@ -128,11 +172,21 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
   );
   const runs = new RunRegistry();
   const application = createEvaluationApplication();
+  const promptStore = openPromptOpsStore({
+    workspaceRoot: options.workspaceRoot,
+    ...(options.promptDatabasePath === undefined
+      ? {}
+      : { databasePath: options.promptDatabasePath }),
+  });
+  const promptApplication = createPromptApplication(promptStore);
   const server = Fastify({
     bodyLimit: 256 * 1024,
     requestIdHeader: false,
     genReqId: () => `request-${randomUUID()}`,
     logger: false,
+  });
+  server.addHook("onClose", () => {
+    promptStore.close();
   });
 
   server.addHook("onRequest", async (request, reply) => {
@@ -279,6 +333,163 @@ export async function buildStudioServer(options: StudioServerOptions): Promise<F
       suites: project.suites.map(({ id, name }) => ({ id, name })),
       scenarios: project.scenarios.map(({ id, name }) => ({ id, name })),
     })),
+  );
+  server.get<{ Querystring: { limit?: string; cursor?: string } }>(
+    "/api/v1/prompts",
+    async (request, reply) => {
+      try {
+        const limit = request.query.limit === undefined ? 50 : Number(request.query.limit);
+        if (!Number.isInteger(limit)) {
+          throw new PromptOpsError("PROMPT_TEMPLATE_INVALID", "Page limit is invalid.");
+        }
+        const page = await promptApplication.list({
+          limit,
+          ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
+        });
+        return { apiVersion: PROMPTOPS_API_VERSION, ...page };
+      } catch (error) {
+        return promptProblem(reply, request, error);
+      }
+    },
+  );
+  server.post<{ Body: unknown }>("/api/v1/prompts", async (request, reply) => {
+    const parsed = promptCreateRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return problem(
+        reply,
+        request,
+        400,
+        "PROMPT_TEMPLATE_INVALID",
+        "Invalid prompt",
+        "Review the prompt fields and template.",
+        parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          code: "PROMPT_TEMPLATE_INVALID",
+          message: issue.message,
+        })),
+      );
+    }
+    try {
+      const created = await promptApplication.create({
+        promptId: parsed.data.promptId,
+        displayName: parsed.data.displayName,
+        template: {
+          schemaVersion: parsed.data.template.schemaVersion,
+          user: parsed.data.template.user,
+          declaredVariables: parsed.data.template.declaredVariables,
+          ...(parsed.data.template.system === undefined
+            ? {}
+            : { system: parsed.data.template.system }),
+        },
+        ...(parsed.data.note === undefined ? {} : { note: parsed.data.note }),
+      });
+      return reply.code(201).send({ apiVersion: PROMPTOPS_API_VERSION, ...created });
+    } catch (error) {
+      return promptProblem(reply, request, error);
+    }
+  });
+  server.get<{ Params: { promptId: string } }>(
+    "/api/v1/prompts/:promptId",
+    async (request, reply) => {
+      try {
+        return {
+          apiVersion: PROMPTOPS_API_VERSION,
+          ...(await promptApplication.show(request.params.promptId)),
+        };
+      } catch (error) {
+        return promptProblem(reply, request, error);
+      }
+    },
+  );
+  server.post<{ Params: { promptId: string }; Body: unknown }>(
+    "/api/v1/prompts/:promptId/drafts",
+    async (request, reply) => {
+      const parsed = promptDraftCreateRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return problem(
+          reply,
+          request,
+          400,
+          "PROMPT_TEMPLATE_INVALID",
+          "Invalid prompt draft",
+          "Review the draft request.",
+        );
+      }
+      try {
+        return reply.code(201).send({
+          apiVersion: PROMPTOPS_API_VERSION,
+          ...(await promptApplication.createDraft(
+            request.params.promptId,
+            parsed.data.parentVersion,
+          )),
+        });
+      } catch (error) {
+        return promptProblem(reply, request, error);
+      }
+    },
+  );
+  server.put<{ Params: { draftId: string }; Body: unknown }>(
+    "/api/v1/prompt-drafts/:draftId",
+    async (request, reply) => {
+      const parsed = promptDraftSaveRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return problem(
+          reply,
+          request,
+          400,
+          "PROMPT_TEMPLATE_INVALID",
+          "Invalid prompt draft",
+          "Review the draft fields and expected revision.",
+        );
+      }
+      try {
+        return {
+          apiVersion: PROMPTOPS_API_VERSION,
+          ...(await promptApplication.saveDraft({
+            draftId: request.params.draftId,
+            expectedRevision: parsed.data.expectedRevision,
+            template: {
+              schemaVersion: parsed.data.template.schemaVersion,
+              user: parsed.data.template.user,
+              declaredVariables: parsed.data.template.declaredVariables,
+              ...(parsed.data.template.system === undefined
+                ? {}
+                : { system: parsed.data.template.system }),
+            },
+            ...(parsed.data.note === undefined ? {} : { note: parsed.data.note }),
+          })),
+        };
+      } catch (error) {
+        return promptProblem(reply, request, error);
+      }
+    },
+  );
+  server.post<{ Params: { draftId: string }; Body: unknown }>(
+    "/api/v1/prompt-drafts/:draftId/publish",
+    async (request, reply) => {
+      const parsed = promptPublishRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return problem(
+          reply,
+          request,
+          400,
+          "PROMPT_TEMPLATE_INVALID",
+          "Invalid publish request",
+          "Expected revision is required.",
+        );
+      }
+      try {
+        return reply.code(201).send({
+          apiVersion: PROMPTOPS_API_VERSION,
+          ...(await promptApplication.publish(
+            request.params.draftId,
+            parsed.data.expectedRevision,
+          )),
+        });
+      } catch (error) {
+        return promptProblem(reply, request, error);
+      }
+    },
   );
   server.get<{ Params: { projectId: string } }>(
     "/api/v1/projects/:projectId",

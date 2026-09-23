@@ -6,6 +6,7 @@ import { startStudioServer } from "./server.js";
 const workspaceRoot = resolve(process.env.LLMEVAL_WORKSPACE_ROOT ?? process.cwd());
 const reportRoot = resolve(process.env.LLMEVAL_REPORT_ROOT ?? "reports");
 const assetsRoot = process.env.LLMEVAL_STUDIO_ASSETS;
+const promptDatabasePath = process.env.LLMEVAL_PROMPTOPS_DATABASE;
 const webOrigin =
   process.env.LLMEVAL_STUDIO_ORIGIN ??
   (assetsRoot === undefined ? "http://127.0.0.1:4173" : "http://127.0.0.1:4317");
@@ -17,6 +18,7 @@ const { server, url } = await startStudioServer({
   origin: webOrigin,
   allowedHosts: [new URL(webOrigin).host, `127.0.0.1:${apiPort}`, `localhost:${apiPort}`],
   ...(assetsRoot === undefined ? {} : { productionAssetsRoot: resolve(assetsRoot) }),
+  ...(promptDatabasePath === undefined ? {} : { promptDatabasePath }),
 });
 
 process.stdout.write(

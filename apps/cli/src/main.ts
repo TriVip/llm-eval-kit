@@ -1,8 +1,10 @@
+import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { Command, CommanderError } from "commander";
 
 import { writeHumanReviewQueue, writeRunArtifact } from "@llm-eval-kit/artifacts";
+import { promptTemplateSchema } from "@llm-eval-kit/api-contracts";
 import { loadEvaluationSuite, loadProjectConfig, loadRunArtifact } from "@llm-eval-kit/config";
 import {
   ConfigurationError,
@@ -14,12 +16,14 @@ import {
   type Severity,
 } from "@llm-eval-kit/core";
 import { loadMockFixtureFile, type MockFixtureFile } from "@llm-eval-kit/providers";
+import { PromptOpsError, type PromptTemplate } from "@llm-eval-kit/promptops";
+import { openPromptOpsStore } from "@llm-eval-kit/promptops-sqlite";
 import {
   appendStructuredLog,
   renderTerminalReport,
   writeHtmlReport,
 } from "@llm-eval-kit/reporters";
-import { createEvaluationApplication } from "@llm-eval-kit/sdk";
+import { createEvaluationApplication, createPromptApplication } from "@llm-eval-kit/sdk";
 
 export type CliContext = {
   cwd?: string;
@@ -48,6 +52,23 @@ type ReportOptions = {
   output?: string;
   baseline?: string;
 };
+type PromptDatabaseOptions = { database?: string };
+type PromptListOptions = PromptDatabaseOptions & { limit: string; cursor?: string };
+type PromptCreateOptions = PromptDatabaseOptions & {
+  id: string;
+  name: string;
+  template: string;
+  note?: string;
+};
+type PromptDraftCreateOptions = PromptDatabaseOptions & { id: string; parentVersion?: string };
+type PromptDraftSaveOptions = PromptDatabaseOptions & {
+  draft: string;
+  expectedRevision: string;
+  template: string;
+  note?: string;
+};
+type PromptPublishOptions = PromptDatabaseOptions & { draft: string; expectedRevision: string };
+type PromptShowOptions = PromptDatabaseOptions & { id: string; promptVersion?: string };
 
 const defaultWriteOut = (message: string): void => {
   process.stdout.write(message);
@@ -67,6 +88,65 @@ function errorExitCode(error: FrameworkError): number {
   }
 
   return 4;
+}
+
+function promptErrorExitCode(error: PromptOpsError): number {
+  return ["DATABASE_BUSY", "DATABASE_CORRUPT", "MIGRATION_FAILED"].includes(error.code) ? 4 : 2;
+}
+
+function nonnegativeInteger(value: string, label: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new PromptOpsError("PROMPT_TEMPLATE_INVALID", `${label} must be a non-negative integer.`);
+  }
+  return parsed;
+}
+
+function positiveInteger(value: string, label: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new PromptOpsError("PROMPT_TEMPLATE_INVALID", `${label} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+async function loadPromptTemplate(path: string, cwd: string): Promise<PromptTemplate> {
+  let input: unknown;
+  try {
+    input = JSON.parse(await readFile(resolve(cwd, path), "utf8"));
+  } catch {
+    throw new PromptOpsError("PROMPT_TEMPLATE_INVALID", "Prompt template file is not valid JSON.");
+  }
+  const parsed = promptTemplateSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new PromptOpsError("PROMPT_TEMPLATE_INVALID", "Prompt template file is invalid.");
+  }
+  return {
+    schemaVersion: parsed.data.schemaVersion,
+    user: parsed.data.user,
+    declaredVariables: parsed.data.declaredVariables,
+    ...(parsed.data.system === undefined ? {} : { system: parsed.data.system }),
+  };
+}
+
+async function withPromptApplication<T>(
+  options: PromptDatabaseOptions,
+  context: Required<CliContext>,
+  operation: (application: ReturnType<typeof createPromptApplication>) => Promise<T>,
+): Promise<T> {
+  const store = openPromptOpsStore({
+    workspaceRoot: context.cwd,
+    ...(options.database === undefined ? {} : { databasePath: options.database }),
+  });
+  try {
+    return await operation(createPromptApplication(store));
+  } finally {
+    store.close();
+  }
+}
+
+function writeJson(context: Required<CliContext>, value: unknown): void {
+  context.writeOut(`${JSON.stringify(value, null, 2)}\n`);
 }
 
 function collectOption(value: string, previous: string[] = []): string[] {
@@ -363,6 +443,112 @@ export async function runCli(argv: string[], providedContext: CliContext = {}): 
       commandExitCode = await executeReport(options, context);
     });
 
+  const prompt = program.command("prompt").description("Manage immutable PromptOps prompts.");
+  prompt
+    .command("list")
+    .description("List prompts in stable ID order.")
+    .option("--database <path>", "workspace-relative PromptOps database path")
+    .option("--limit <number>", "maximum prompts to return", "50")
+    .option("--cursor <prompt-id>", "continue after this prompt ID")
+    .action(async (options: PromptListOptions) => {
+      const result = await withPromptApplication(options, context, (app) =>
+        app.list({
+          limit: positiveInteger(options.limit, "Limit"),
+          ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
+        }),
+      );
+      writeJson(context, result);
+    });
+  prompt
+    .command("create")
+    .description("Create a prompt and its initial draft.")
+    .requiredOption("--id <prompt-id>", "stable prompt ID")
+    .requiredOption("--name <display-name>", "prompt display name")
+    .requiredOption("--template <path>", "prompt template JSON file")
+    .option("--note <text>", "optional prompt note")
+    .option("--database <path>", "workspace-relative PromptOps database path")
+    .action(async (options: PromptCreateOptions) => {
+      const template = await loadPromptTemplate(options.template, context.cwd);
+      const result = await withPromptApplication(options, context, (app) =>
+        app.create({
+          promptId: options.id,
+          displayName: options.name,
+          template,
+          ...(options.note === undefined ? {} : { note: options.note }),
+        }),
+      );
+      writeJson(context, result);
+    });
+  const promptDraft = prompt.command("draft").description("Manage mutable prompt drafts.");
+  promptDraft
+    .command("create")
+    .description("Create a draft from a published prompt version.")
+    .requiredOption("--id <prompt-id>", "prompt ID")
+    .option("--parent-version <number>", "published parent version")
+    .option("--database <path>", "workspace-relative PromptOps database path")
+    .action(async (options: PromptDraftCreateOptions) => {
+      const result = await withPromptApplication(options, context, (app) =>
+        app.createDraft(
+          options.id,
+          options.parentVersion === undefined
+            ? undefined
+            : positiveInteger(options.parentVersion, "Parent version"),
+        ),
+      );
+      writeJson(context, result);
+    });
+  promptDraft
+    .command("save")
+    .description("Save a draft using optimistic revision control.")
+    .requiredOption("--draft <draft-id>", "draft ID")
+    .requiredOption("--expected-revision <number>", "current draft revision")
+    .requiredOption("--template <path>", "prompt template JSON file")
+    .option("--note <text>", "optional draft note")
+    .option("--database <path>", "workspace-relative PromptOps database path")
+    .action(async (options: PromptDraftSaveOptions) => {
+      const template = await loadPromptTemplate(options.template, context.cwd);
+      const result = await withPromptApplication(options, context, (app) =>
+        app.saveDraft({
+          draftId: options.draft,
+          expectedRevision: nonnegativeInteger(options.expectedRevision, "Expected revision"),
+          template,
+          ...(options.note === undefined ? {} : { note: options.note }),
+        }),
+      );
+      writeJson(context, result);
+    });
+  prompt
+    .command("publish")
+    .description("Atomically publish an immutable prompt version.")
+    .requiredOption("--draft <draft-id>", "draft ID")
+    .requiredOption("--expected-revision <number>", "current draft revision")
+    .option("--database <path>", "workspace-relative PromptOps database path")
+    .action(async (options: PromptPublishOptions) => {
+      const result = await withPromptApplication(options, context, (app) =>
+        app.publish(
+          options.draft,
+          nonnegativeInteger(options.expectedRevision, "Expected revision"),
+        ),
+      );
+      writeJson(context, result);
+    });
+  prompt
+    .command("show")
+    .description("Inspect prompt draft and immutable version lineage.")
+    .requiredOption("--id <prompt-id>", "prompt ID")
+    .option("--prompt-version <number>", "specific published version")
+    .option("--database <path>", "workspace-relative PromptOps database path")
+    .action(async (options: PromptShowOptions) => {
+      const result = await withPromptApplication<unknown>(options, context, async (app) => {
+        if (options.promptVersion === undefined) return app.show(options.id);
+        return app.showVersion(
+          options.id,
+          positiveInteger(options.promptVersion, "Prompt version"),
+        );
+      });
+      writeJson(context, result);
+    });
+
   try {
     await program.parseAsync(["node", "llmeval", ...argv]);
     return commandExitCode;
@@ -374,6 +560,11 @@ export async function runCli(argv: string[], providedContext: CliContext = {}): 
     if (error instanceof FrameworkError) {
       context.writeErr(`${error.safeMessage}\n`);
       return errorExitCode(error);
+    }
+
+    if (error instanceof PromptOpsError) {
+      context.writeErr(`${error.safeMessage}\n`);
+      return promptErrorExitCode(error);
     }
 
     context.writeErr("An internal framework error occurred.\n");
